@@ -2,6 +2,7 @@ __author__ = 'psteam'
 
 import mock
 
+from nova import db
 from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
@@ -81,3 +82,34 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         instance_info = conn.get_info(fake_instance)
         self.assertEqual(fake_info, instance_info)
         mock_get_info.assert_called_once_with(fake_instance)
+
+    @mock.patch.object(hostops.HostOps, "nPar_lookup")
+    @mock.patch.object(db, 'nPar_get_all')
+    def test_scheduler_dispatch(self, mock_nPar_get_all, mock_nPar_lookup):
+        fake_vPar_info = {
+            'mem': 1024,
+            'num_cpu': 2,
+            'disk': 5
+        }
+        fake_nPar = {
+            'supported_instances': [],
+            'vcpus': 2,
+            'memory_mb': 2048,
+            'local_gb': 100,
+            'vcpus_used': 0,
+            'memory_mb_used': 1024,
+            'local_gb_used': 10,
+            'hypervisor_type': 'hpux',
+            'hypervisor_version': '201409',
+            'hypervisor_hostname': 'hpux'
+        }
+        fake_nPar_list = []
+        fake_nPar_list.append(fake_nPar)
+        mock_nPar_get_all.return_value = fake_nPar_list
+        mock_nPar_lookup.return_value = fake_nPar
+        conn = hpux_driver.HPUXDriver(None, hostops=hostops.HostOps())
+        nPar = conn.scheduler_dispatch(fake_vPar_info)
+        self.assertEqual(fake_nPar, nPar)
+        mock_nPar_get_all.assert_called_once_with()
+        mock_nPar_lookup.assert_called_once_with(fake_vPar_info,
+                                                 fake_nPar_list)
