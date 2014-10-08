@@ -6,6 +6,7 @@ from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
+from nova.virt.hpux.remote_cmd_service import RemoteCmdService
 
 
 class FakeInstance(object):
@@ -81,3 +82,17 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         instance_info = conn.get_info(fake_instance)
         self.assertEqual(fake_info, instance_info)
         mock_get_info.assert_called_once_with(fake_instance)
+
+
+    def test_exec_remote_cmd(self):
+        remote_cmd_info= {
+            "username": "hptest",
+            "password": "123456",
+            "ip_address": "192.168.163.131",
+            "command": "echo 'Hello World' "
+        }
+
+        remote_cmd_service = RemoteCmdService()
+        ret_str = remote_cmd_service.exec_remote_cmd(**remote_cmd_info)
+
+        self.assertEqual("Success", ret_str)
