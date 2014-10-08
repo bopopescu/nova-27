@@ -4,6 +4,7 @@ __author__ = 'psteam'
 A HP-UX Nova Compute driver.
 """
 
+from nova import db
 from nova.virt import driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
@@ -55,3 +56,13 @@ class HPUXDriver(driver.ComputeDriver):
         :cpu_time:        (int) the CPU time used in nanoseconds
         """
         return self._vparops.get_info(instance)
+
+    def scheduler_dispatch(self, vPar_info):
+        """Lookup target nPar.
+
+        :param vPar_info: (dict) the required vPar info
+        :returns: dictionary containing nPar info
+        """
+        nPar_list = db.nPar_get_all()
+        nPar = self._hostops.nPar_lookup(vPar_info, nPar_list)
+        return nPar

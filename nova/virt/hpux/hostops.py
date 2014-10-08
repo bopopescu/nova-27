@@ -140,3 +140,15 @@ class HostOps(object):
         self._stats = data
 
         return data
+
+    def nPar_lookup(self, vPar_info, nPar_list):
+        # Initial dispatch policy
+        for nPar in nPar_list:
+            current_mem = nPar['memory_mb'] - nPar['memory_mb_used']
+            current_vcpus = nPar['vcpus'] - nPar['vcpus_used']
+            current_disk = nPar['local_gb'] - nPar['local_gb_used']
+            if (vPar_info['mem'] < current_mem and
+                vPar_info['num_cpu'] < current_vcpus and
+                vPar_info['disk'] < current_disk):
+                return nPar
+        return None
