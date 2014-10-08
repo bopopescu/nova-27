@@ -86,11 +86,12 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         self.assertEqual(fake_info, instance_info)
         mock_get_info.assert_called_once_with(fake_instance)
 
+    @test.testtools.skip("exec_remote_cmd")
     def test_exec_remote_cmd(self):
         remote_cmd_info= {
-            "username": "hptest",
-            "password": "123456",
-            "ip_address": "192.168.163.131",
+            "username": "helion",
+            "password": "hpinvent",
+            "ip_address": "16.158.50.176",
             "command": "echo 'Hello World' "
         }
 
