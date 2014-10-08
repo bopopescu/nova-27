@@ -66,3 +66,18 @@ class HPUXDriver(driver.ComputeDriver):
         nPar_list = db.nPar_get_all()
         nPar = self._hostops.nPar_lookup(vPar_info, nPar_list)
         return nPar
+
+    def instance_exists(self, instance_name):
+        """Check target instance exists or not.
+
+        :param instance_name:
+        :return:
+        :True:
+        :False:
+        """
+        instance_list = self.list_instances()
+        for inst_name in instance_list:
+            if instance_name == inst_name:
+                return True
+            continue
+        return False
