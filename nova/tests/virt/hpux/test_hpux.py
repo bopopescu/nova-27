@@ -77,9 +77,11 @@ class HPUXDriverTestCase(test.NoDBTestCase):
             'num_cpu': 2,
             'cpu_time': None
         }
-        fake_instance = FakeInstance()
         mock_get_info.return_value = fake_info
         conn = hpux_driver.HPUXDriver(None, vparops=vparops.VParOps())
+        fake_instance = {
+            'name': 'fake1'
+        }
         instance_info = conn.get_info(fake_instance)
         self.assertEqual(fake_info, instance_info)
         mock_get_info.assert_called_once_with(fake_instance)
@@ -127,3 +129,21 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_nPar_get_all.assert_called_once_with()
         mock_nPar_lookup.assert_called_once_with(fake_vPar_info,
                                                  fake_nPar_list)
+
+    @mock.patch.object(hpux_driver.HPUXDriver, 'list_instances')
+    def test_instance_exists_or_not(self, mock_list_instances):
+        fake_instances = ['fake1', 'fake2']
+        mock_list_instances.return_value = fake_instances
+        conn = hpux_driver.HPUXDriver(None)
+        self.assertTrue(conn.instance_exists('fake1'))
+        self.assertFalse(conn.instance_exists('fake3'))
+        mock_list_instances.assert_any_call()
+        assert 2 == mock_list_instances.call_count
+
+    @mock.patch.object(hpux_driver.HPUXDriver, 'list_instances')
+    def test_get_num_instances(self, mock_list_instances):
+        fake_instances = ['fake1', 'fake2']
+        mock_list_instances.return_value = fake_instances
+        conn = hpux_driver.HPUXDriver(None)
+        self.assertEqual(2, conn.get_num_instances())
+        mock_list_instances.assert_called_once_with()
