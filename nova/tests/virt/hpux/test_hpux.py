@@ -7,8 +7,8 @@ from nova import db
 from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
+from nova.virt.hpux import remote_cmd_service
 from nova.virt.hpux import vparops
-from nova.virt.hpux.remote_cmd_service import RemoteCmdService
 
 
 class FakeInstance(object):
@@ -87,19 +87,19 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         self.assertEqual(fake_info, instance_info)
         mock_get_info.assert_called_once_with(fake_instance)
 
-    @test.testtools.skip("exec_remote_cmd")
+    #@test.testtools.skip("exec_remote_cmd")
     def test_exec_remote_cmd(self):
-        remote_cmd_info= {
-            "username": "helion",
+        remote_cmd_info = {
+            "username": "psteam",
             "password": "hpinvent",
-            "ip_address": "16.158.50.176",
-            "command": "echo 'Hello World' "
+            "ip_address": "127.0.0.1",
+            "command": "echo 'Hello World'"
         }
 
-        remote_cmd_service = RemoteCmdService()
-        ret_str = remote_cmd_service.exec_remote_cmd(**remote_cmd_info)
+        remote_cmd = remote_cmd_service.RemoteCmdService()
+        ret_str = remote_cmd.exec_remote_cmd(**remote_cmd_info)
 
-        self.assertEqual("Success", ret_str)
+        self.assertEqual("Hello World", ret_str)
 
     @mock.patch.object(hostops.HostOps, "nPar_lookup")
     @mock.patch.object(db, 'nPar_get_all')
@@ -178,6 +178,6 @@ class HPUXDriverTestCase(test.NoDBTestCase):
                    fake_injected_files, fake_admin_password,
                    network_info=None, block_device_info=None)
         mock_spawn.assert_called_once_with(fake_context, fake_instance,
-                                         fake_image_meta, fake_injected_files,
-                                         fake_admin_password, network_info=None,
-                                         block_device_info=None)
+                                       fake_image_meta, fake_injected_files,
+                                       fake_admin_password, network_info=None,
+                                       block_device_info=None)
