@@ -10,7 +10,7 @@ from nova import exception
 from nova.openstack.common.gettextutils import _
 
 
-class RemoteCmdService(object):
+class ExecRemoteCmd(object):
     def exec_remote_cmd(self, **remote_cmd_info):
         execute_result = None
         try:

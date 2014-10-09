@@ -7,7 +7,7 @@ from nova import db
 from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
-from nova.virt.hpux import remote_cmd_service
+from nova.virt.hpux import utils
 from nova.virt.hpux import vparops
 
 
@@ -96,7 +96,7 @@ class HPUXDriverTestCase(test.NoDBTestCase):
             "command": "echo 'Hello World'"
         }
 
-        remote_cmd = remote_cmd_service.RemoteCmdService()
+        remote_cmd = utils.ExecRemoteCmd()
         ret_str = remote_cmd.exec_remote_cmd(**remote_cmd_info)
 
         self.assertEqual("Hello World", ret_str)
