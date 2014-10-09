@@ -15,3 +15,6 @@ class VParOps(object):
 
     def get_info(self, instance):
         return {}
+
+    def destroy(self, context, instance, network_info):
+        return True

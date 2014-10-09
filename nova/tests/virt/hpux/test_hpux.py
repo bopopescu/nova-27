@@ -2,6 +2,7 @@ __author__ = 'psteam'
 
 import mock
 
+from nova import context
 from nova import db
 from nova import test
 from nova.virt.hpux import driver as hpux_driver
@@ -148,3 +149,18 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         conn = hpux_driver.HPUXDriver(None)
         self.assertEqual(2, conn.get_num_instances())
         mock_list_instances.assert_called_once_with()
+
+    @mock.patch.object(vparops.VParOps, 'destroy')
+    def test_destroy(self, mock_destroy):
+        fake_context = context.get_admin_context()
+        fake_instance = FakeInstance()
+        fake_network_info = {
+            'fixed_ip': '1.1.1.1',
+            'floating_ip': '11.11.11.11'
+        }
+        mock_destroy.return_value = True
+        conn = hpux_driver.HPUXDriver(None)
+        self.assertTrue(True, conn.destroy(fake_context,
+                                           fake_instance, fake_network_info))
+        mock_destroy.assert_called_once_with(fake_context,
+                                             fake_instance, fake_network_info)

@@ -81,3 +81,16 @@ class HPUXDriver(driver.ComputeDriver):
                 return True
             continue
         return False
+
+    def destroy(self, context, instance, network_info, block_device_info=None,
+                destroy_disks=True):
+        """Destroy specific vpar
+
+        :param context:
+        :param instance:
+        :param network_info:
+        :param block_device_info:
+        :param destroy_disks:
+        :return:
+        """
+        return self._vparops.destroy(context, instance, network_info)
