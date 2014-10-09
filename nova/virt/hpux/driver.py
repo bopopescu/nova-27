@@ -111,3 +111,29 @@ class HPUXDriver(driver.ComputeDriver):
         self._vparops.spawn(context, instance, image_meta, injected_files,
                             admin_password, network_info=None,
                             block_device_info=None)
+
+    def connect_npar(self, fake_nPar_id):
+        return {}
+
+    def connect_igserver(self, ip_addr):
+        return []
+
+    def collect_nPar_resource(self):
+        """Get nPar total resource.
+
+        :param nPar_list: (list) the required nPar list
+        :returns: list containing nPar id
+        """
+        npar_stats_total = {}
+        nPar_list = []
+        nPar_list = self.connect_igserver('192.68.0.1')
+        for nPar in nPar_list:
+            pass
+            #nPar_info = self.connect_npar(None)
+            #npar_stats = self._hostops.nPar_resource(nPar_info)
+            #npar_stats_total['vcpus'] += npar_stats['vcpus']
+            #npar_stats_total['memory_mb'] += npar_stats['memory_mb']
+            #npar_stats_total['local_gb'] += npar_stats['local_gb']
+            #npar_stats_total['local_gb'] += npar_stats['local_gb']
+        return npar_stats_total
+

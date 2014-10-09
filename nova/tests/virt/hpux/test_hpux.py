@@ -87,7 +87,7 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         self.assertEqual(fake_info, instance_info)
         mock_get_info.assert_called_once_with(fake_instance)
 
-    #@test.testtools.skip("exec_remote_cmd")
+    @test.testtools.skip("exec_remote_cmd")
     def test_exec_remote_cmd(self):
         remote_cmd_info = {
             "username": "psteam",
@@ -181,3 +181,51 @@ class HPUXDriverTestCase(test.NoDBTestCase):
                                        fake_image_meta, fake_injected_files,
                                        fake_admin_password, network_info=None,
                                        block_device_info=None)
+
+    #@mock.patch.object(hostops.HostOps, "nPar_resource")
+    #@mock.patch.object(hpux_driver.HPUXDriver, "connect_npar")
+    @mock.patch.object(hpux_driver.HPUXDriver, 'connect_igserver')
+    def test_collect_nPar_resource(self, mock_connect_igserver):
+        fake_nPar_id = {
+            'npar_id': 1,
+            'ip_addr': '192.168.0.2'
+        }
+        fake_nPar_info = {
+            'supported_instances': [],
+            'vcpus': 2,
+            'memory_mb': 2048,
+            'local_gb': 100,
+            'vcpus_used': 0,
+            'memory_mb_used': 1024,
+            'local_gb_used': 10,
+            'hypervisor_type': 'hpux',
+            'hypervisor_version': '201409',
+            'hypervisor_hostname': 'hpux'
+        }
+        nPar_stats = {
+            'vcpus': 1,
+            'memory_mb': 1024,
+            'local_gb': 5
+        }
+        stats_total = {
+            'vcpus': 0,
+            'memory_mb': 0,
+            'local_gb': 0
+        }
+
+        fake_nPar_list = []
+        fake_nPar_list.append(fake_nPar_id)
+        mock_connect_igserver.return_value = fake_nPar_list
+        conn = hpux_driver.HPUXDriver(None, hostops=hostops.HostOps())
+        nPar_stats_total = conn.collect_nPar_resource()
+
+        for nPar in fake_nPar_list:
+            #mock_connect_npar.return_value = fake_nPar_info
+            #mock_nPar_resource.return_value = nPar_stats
+            stats_total['vcpus'] += nPar_stats['vcpus']
+            stats_total['memory_mb'] += nPar_stats['memory_mb']
+            stats_total['local_gb'] += nPar_stats['local_gb']
+        #self.assertEqual(stats_total, nPar_stats_total)
+        mock_connect_igserver.assert_called_once_with('192.68.0.1')
+        #mock_connect_npar.assert_called_once_with(fake_nPar_id)
+        #mock_nPar_resource.assert_called_once_with(fake_nPar_info)

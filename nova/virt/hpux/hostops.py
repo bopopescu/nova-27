@@ -152,3 +152,11 @@ class HostOps(object):
                 vPar_info['disk'] < current_disk):
                 return nPar
         return None
+
+    def nPar_resource(self, nPar_info):
+        """ Sum nPar resource info, including
+        Get nPar resource
+        """
+        npar_stats = {}
+        return npar_stats
+
