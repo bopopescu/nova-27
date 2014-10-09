@@ -93,4 +93,21 @@ class HPUXDriver(driver.ComputeDriver):
         :param destroy_disks:
         :return:
         """
-        return self._vparops.destroy(context, instance, network_info)
+        self._vparops.destroy(context, instance, network_info)
+
+    def spawn(self, context, instance, image_meta, injected_files,
+              admin_password, network_info=None, block_device_info=None):
+        """Spawn new vapr
+
+        :param context:
+        :param instance:
+        :param image_meta:
+        :param injected_files:
+        :param admin_password:
+        :param network_info:
+        :param block_device_info:
+        :return:
+        """
+        self._vparops.spawn(context, instance, image_meta, injected_files,
+                            admin_password, network_info=None,
+                            block_device_info=None)

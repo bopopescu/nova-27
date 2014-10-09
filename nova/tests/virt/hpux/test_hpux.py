@@ -158,9 +158,26 @@ class HPUXDriverTestCase(test.NoDBTestCase):
             'fixed_ip': '1.1.1.1',
             'floating_ip': '11.11.11.11'
         }
-        mock_destroy.return_value = True
         conn = hpux_driver.HPUXDriver(None)
-        self.assertTrue(True, conn.destroy(fake_context,
-                                           fake_instance, fake_network_info))
+        conn.destroy(fake_context, fake_instance, fake_network_info)
         mock_destroy.assert_called_once_with(fake_context,
                                              fake_instance, fake_network_info)
+
+    @mock.patch.object(vparops.VParOps, 'spawn')
+    def test_spawn(self, mock_spawn):
+        fake_context = context.get_admin_context()
+        fake_instance = FakeInstance()
+        fake_image_meta = {
+            'image_id': '111111111111111',
+            'image_name': 'fake_image_name_1'
+        }
+        fake_injected_files = None
+        fake_admin_password = 'fake_password'
+        conn = hpux_driver.HPUXDriver(None)
+        conn.spawn(fake_context, fake_instance, fake_image_meta,
+                   fake_injected_files, fake_admin_password,
+                   network_info=None, block_device_info=None)
+        mock_spawn.assert_called_once_with(fake_context, fake_instance,
+                                         fake_image_meta, fake_injected_files,
+                                         fake_admin_password, network_info=None,
+                                         block_device_info=None)

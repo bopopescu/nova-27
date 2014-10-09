@@ -17,4 +17,8 @@ class VParOps(object):
         return {}
 
     def destroy(self, context, instance, network_info):
-        return True
+        pass
+
+    def spawn(self, context, instance, image_meta, injected_files,
+              admin_password, network_info=None, block_device_info=None):
+        pass
