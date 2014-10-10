@@ -1927,6 +1927,9 @@ def archive_deleted_rows_for_table(context, tablename, max_rows=None):
 
 ####################
 
+def nPar_resource_create(context, values):
+    """Create a new nPar_resource."""
+    return IMPL.nPar_resource_create(context, values)
 
 def nPar_get_all():
     pass

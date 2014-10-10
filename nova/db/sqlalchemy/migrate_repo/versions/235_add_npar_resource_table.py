@@ -29,7 +29,8 @@ def upgrade(migrate_engine):
     meta = MetaData()
     meta.bind = migrate_engine
 
-    npar_resource = Table('nPar_resource', meta,
+    nPar_resource = Table('nPar_resource', meta,
+        Column('id', Integer, nullable=False),
         Column('created_at', DateTime),
         Column('updated_at', DateTime),
         Column('deleted_at', DateTime),
@@ -41,15 +42,39 @@ def upgrade(migrate_engine):
         Column('memory_used', Integer, nullable=True),
         Column('disk', Integer, nullable=True),
         Column('disk_used', Integer, nullable=True),
-
+        Column('deleted', String(length=36)),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+    shadow_nPar_resource = Table('shadow_nPar_resource', meta,
+        Column('id', Integer, nullable=False),
+        Column('created_at', DateTime),
+        Column('updated_at', DateTime),
+        Column('deleted_at', DateTime),
+        Column('npar_id', Integer, primary_key=True, nullable=False),
+        Column('ip_add', String(length=255), nullable=False),
+        Column('vcpus', Integer, nullable=True),
+        Column('vcpus_used', Integer, nullable=True),
+        Column('memory', Integer, nullable=True),
+        Column('memory_used', Integer, nullable=True),
+        Column('disk', Integer, nullable=True),
+        Column('disk_used', Integer, nullable=True),
+        Column('deleted', String(length=36)),
         mysql_engine='InnoDB',
         mysql_charset='utf8'
     )
 
     try:
-        npar_resource.create()
+        # Drop the compute_node_stats table and add a 'stats' column to
+        # compute_nodes directly.  The data itself is transient and doesn't
+        #  need to be copied over.
+        table_names = ('nPar_resource', 'shadow_nPar_resource')
+        for table_name in table_names:
+            table = Table(table_name, meta, autoload=True)
+            table.create()
+
     except Exception:
-        LOG.info(repr(npar_resource))
+        LOG.info(repr(nPar_resource))
         LOG.exception(_('Exception while creating table.'))
         raise
 
@@ -59,5 +84,8 @@ def downgrade(migrate_engine):
     meta.bind = migrate_engine
 
     table_name = ('nPar_resource')
+    table = Table(table_name, meta, autoload=True)
+    table.drop()
+    table_name = ('shadow_nPar_resource')
     table = Table(table_name, meta, autoload=True)
     table.drop()

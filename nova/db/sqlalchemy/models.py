@@ -341,6 +341,7 @@ class InstanceTypes(BASE, NovaBase):
     is_public = Column(Boolean, default=True)
 
 
+
 class Volume(BASE, NovaBase):
     """Represents a block storage device that can be attached to a VM."""
     __tablename__ = 'volumes'
@@ -1395,3 +1396,26 @@ class PciDevice(BASE, NovaBase):
                             primaryjoin='and_('
                             'PciDevice.instance_uuid == Instance.uuid,'
                             'PciDevice.deleted == 0)')
+
+class NParRes(BASE, NovaBase):
+    """Represents possible flavors for instances.
+
+    Note: instance_type and flavor are synonyms and the term instance_type is
+    deprecated and in the process of being removed.
+    """
+    __tablename__ = "nPar_resource"
+    __table_args__ = ()
+    # Internal only primary key/id
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    npar_id = Column(Integer, primary_key=True)
+    ip_add = Column(String(255))
+    memory = Column(Integer, nullable=False)
+    memory_used = Column(Integer, nullable=False)
+    vcpus = Column(Integer, nullable=False)
+    vcpus_used = Column(Integer)
+    disk = Column(Integer, nullable=False)
+    disk_used = Column(Integer, nullable=False)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    deleted_at = Column(DateTime)
+    deleted = Column(String(36), default="")

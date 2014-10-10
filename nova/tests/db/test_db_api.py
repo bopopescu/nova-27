@@ -7172,3 +7172,40 @@ class RetryOnDeadlockTestCase(test.TestCase):
                 raise db_exc.DBDeadlock("fake exception")
             return True
         self.assertTrue(call_api())
+
+'''
+class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
+    _ignored_keys = ['id', 'deleted', 'deleted_at', 'created_at', 'updated_at']
+    def setUp(self):
+        self.ctxt = context.get_admin_context()
+
+    def _get_base_values(self):
+        return {
+            'npar_id': 3,
+            'ip_addr': '192.168.0.3',
+            'vcpus': 2,
+            'vcpus_used': 0,
+            'memory': 2048,
+            'memory_used': 1024,
+            'disk': 100,
+            'disk_used': 100
+        }
+
+    def _create_nPar_get_all(self, values):
+        v = self._get_base_values()
+        v.update(values)
+        return db.nPar_resource_create(self.ctxt, v)
+
+    def test_nPar_get_all(self):
+        pass
+
+        values = [
+            {'npar_id': 1, 'ip_add': '192.168.0.1'},
+            {'npar_id': 2, 'ip_add': '192.168.0.2'},
+        ]
+        nPar_resource = [self._nPar_resource_group(vals)
+                         for vals in values]
+        real = db.nPar_get_all(self.ctxt)
+
+        self._assertEqualListsOfObjects(nPar_resource, real, ignored_keys=self._ignored_keys)
+        '''
