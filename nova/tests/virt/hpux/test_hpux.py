@@ -182,10 +182,12 @@ class HPUXDriverTestCase(test.NoDBTestCase):
                                        fake_admin_password, network_info=None,
                                        block_device_info=None)
 
-    #@mock.patch.object(hostops.HostOps, "nPar_resource")
-    #@mock.patch.object(hpux_driver.HPUXDriver, "connect_npar")
+    @mock.patch.object(hostops.HostOps, "nPar_resource")
+    @mock.patch.object(hpux_driver.HPUXDriver, "connect_npar")
     @mock.patch.object(hpux_driver.HPUXDriver, 'connect_igserver')
-    def test_collect_nPar_resource(self, mock_connect_igserver):
+    def test_collect_nPar_resource(self, mock_connect_igserver,
+                                   mock_connect_npar,
+                                   mock_nPar_resource):
         fake_nPar_id = {
             'npar_id': 1,
             'ip_addr': '192.168.0.2'
@@ -220,12 +222,11 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         nPar_stats_total = conn.collect_nPar_resource()
 
         for nPar in fake_nPar_list:
-            #mock_connect_npar.return_value = fake_nPar_info
-            #mock_nPar_resource.return_value = nPar_stats
+            mock_connect_npar.return_value = fake_nPar_info
+            mock_nPar_resource.return_value = nPar_stats
             stats_total['vcpus'] += nPar_stats['vcpus']
             stats_total['memory_mb'] += nPar_stats['memory_mb']
             stats_total['local_gb'] += nPar_stats['local_gb']
-        #self.assertEqual(stats_total, nPar_stats_total)
+        self.assertEqual(stats_total, nPar_stats)
         mock_connect_igserver.assert_called_once_with('192.68.0.1')
-        #mock_connect_npar.assert_called_once_with(fake_nPar_id)
-        #mock_nPar_resource.assert_called_once_with(fake_nPar_info)
+        mock_connect_npar.assert_called_once_with(fake_nPar_id)

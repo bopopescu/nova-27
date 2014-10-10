@@ -154,9 +154,14 @@ class HostOps(object):
         return None
 
     def nPar_resource(self, nPar_info):
-        """ Sum nPar resource info, including
-        Get nPar resource
+        """Deal with nPar resource data
         """
-        npar_stats = {}
-        return npar_stats
-
+        npar_stats_total = {
+            'vcpus': 0,
+            'memory_mb': 0,
+            'local_gb': 0
+        }
+        npar_stats_total['vcpus'] += nPar_info['vcpus']
+        npar_stats_total['memory_mb'] += nPar_info['memory_mb']
+        npar_stats_total['local_gb'] += nPar_info['local_gb']
+        return npar_stats_total

@@ -112,28 +112,36 @@ class HPUXDriver(driver.ComputeDriver):
                             admin_password, network_info=None,
                             block_device_info=None)
 
-    def connect_npar(self, fake_nPar_id):
+    def connect_npar(self, nPar_id):
+        """Get npar resource info via exec_remote_cmd()
+
+        :param nPar_id:
+
+        Returns a dict containing nPar resource info
+        """
         return {}
 
     def connect_igserver(self, ip_addr):
+        """Get npar list from ig_server via exec_remote_cmd()
+
+        :param ip_addr:
+
+        Returns npar list
+        """
         return []
 
     def collect_nPar_resource(self):
-        """Get nPar total resource.
+        """Get nPar total resource.(cpu, memory, disk for now)
 
-        :param nPar_list: (list) the required nPar list
-        :returns: list containing nPar id
+        Returns a dict containing total resource info of npar
         """
+        npar_id = {
+            'npar_id': 1,
+            'ip_addr': '192.168.0.2'
+        }
         npar_stats_total = {}
-        nPar_list = []
         nPar_list = self.connect_igserver('192.68.0.1')
         for nPar in nPar_list:
-            pass
-            #nPar_info = self.connect_npar(None)
-            #npar_stats = self._hostops.nPar_resource(nPar_info)
-            #npar_stats_total['vcpus'] += npar_stats['vcpus']
-            #npar_stats_total['memory_mb'] += npar_stats['memory_mb']
-            #npar_stats_total['local_gb'] += npar_stats['local_gb']
-            #npar_stats_total['local_gb'] += npar_stats['local_gb']
+            nPar_info = self.connect_npar(npar_id)
+            npar_stats_total = self._hostops.nPar_resource(nPar_info)
         return npar_stats_total
-
