@@ -697,7 +697,7 @@ class TestNovaMigrations(BaseWalkMigrationTestCase, CommonTestsMixIn):
 
     #for developing HPUX driver,create following 235 functions.
     def _check_235(self, engine, data):
-        self.assertColumnExists(engine, 'nPar_resource', 'ip_add')
+        self.assertColumnExists(engine, 'nPar_resource', 'ip_addr')
 
     def _post_downgrade_235(self, engine):
         self.assertRaises(sqlalchemy.exc.NoSuchTableError, db_utils.get_table,
