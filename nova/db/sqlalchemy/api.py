@@ -6067,3 +6067,20 @@ def pci_device_update(context, node_id, address, values):
         device.update(values)
         session.add(device)
     return device
+
+
+####################
+
+
+@require_context
+def npar_resource_create(context, values):
+    nPar = models.NParResource()
+    nPar.update(values)
+    nPar.save()
+    return nPar
+
+
+@require_admin_context
+def npar_get_all(context):
+    result = model_query(context, models.NParResource).all()
+    return result

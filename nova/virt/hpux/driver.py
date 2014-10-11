@@ -57,13 +57,14 @@ class HPUXDriver(driver.ComputeDriver):
         """
         return self._vparops.get_info(instance)
 
-    def scheduler_dispatch(self, vPar_info):
+    def scheduler_dispatch(self, context, vPar_info):
         """Lookup target nPar.
 
+        :param context:
         :param vPar_info: (dict) the required vPar info
         :returns: dictionary containing nPar info
         """
-        nPar_list = db.nPar_get_all()
+        nPar_list = db.npar_get_all(context)
         nPar = self._hostops.nPar_lookup(vPar_info, nPar_list)
         return nPar
 

@@ -102,8 +102,9 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         self.assertEqual("Hello World", ret_str)
 
     @mock.patch.object(hostops.HostOps, "nPar_lookup")
-    @mock.patch.object(db, 'nPar_get_all')
-    def test_scheduler_dispatch(self, mock_nPar_get_all, mock_nPar_lookup):
+    @mock.patch.object(db, 'npar_get_all')
+    def test_scheduler_dispatch(self, mock_npar_get_all, mock_nPar_lookup):
+        fake_context = context.get_admin_context()
         fake_vPar_info = {
             'mem': 1024,
             'num_cpu': 2,
@@ -123,12 +124,12 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         }
         fake_nPar_list = []
         fake_nPar_list.append(fake_nPar)
-        mock_nPar_get_all.return_value = fake_nPar_list
+        mock_npar_get_all.return_value = fake_nPar_list
         mock_nPar_lookup.return_value = fake_nPar
         conn = hpux_driver.HPUXDriver(None, hostops=hostops.HostOps())
-        nPar = conn.scheduler_dispatch(fake_vPar_info)
+        nPar = conn.scheduler_dispatch(fake_context, fake_vPar_info)
         self.assertEqual(fake_nPar, nPar)
-        mock_nPar_get_all.assert_called_once_with()
+        mock_npar_get_all.assert_called_once_with(fake_context)
         mock_nPar_lookup.assert_called_once_with(fake_vPar_info,
                                                  fake_nPar_list)
 
