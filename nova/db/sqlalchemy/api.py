@@ -6084,3 +6084,21 @@ def npar_resource_create(context, values):
 def npar_get_all(context):
     result = model_query(context, models.NParResource).all()
     return result
+
+
+def _npar_id_get(context, npar_id, session=None):
+    result = model_query(context, models.NParResource, session=session).\
+            filter_by(id=npar_id).\
+            first()
+    if not result:
+        raise exception.NparNotFound(npar=npar_id)
+
+    return result
+
+
+@require_admin_context
+@_retry_on_deadlock
+def npar_resource_update(context, npar_id, values):
+    npar = _npar_id_get(context, npar_id, session=None)
+    npar.update(values)
+    return npar

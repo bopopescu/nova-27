@@ -7208,3 +7208,17 @@ class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
 
         self._assertEqualListsOfObjects(nPar_resource, real,
                                         ignored_keys=self._ignored_keys)
+
+    def test_npar_resource_update(self):
+        value = {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 3}
+        values = [
+            {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 1},
+            {'id': 2, 'ip_addr': '192.168.0.2', 'vcpus': 2},
+        ]
+
+        result = [self._create_npar_resource(vals) for vals in values]
+        if not result:
+            print("create npar record failed")
+        ret = db.npar_resource_update(self.ctxt, 1, value)
+
+        self.assertEqual(3, ret['vcpus'])
