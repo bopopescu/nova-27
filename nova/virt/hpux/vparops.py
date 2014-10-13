@@ -6,7 +6,6 @@ Management class for basic vPar operations.
 
 from xml.dom import minidom
 
-from nova import db
 from nova.virt.hpux import utils
 from oslo.config import cfg
 

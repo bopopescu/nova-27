@@ -2,8 +2,6 @@ __author__ = 'psteam'
 
 import mock
 
-from nova import context
-from nova import db
 from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import vparops
