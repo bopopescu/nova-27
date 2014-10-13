@@ -23,13 +23,13 @@ class ExecRemoteCmd(object):
                                     timeout=20)
             if expect_ret == 0:
                 ssh.sendline(remote_cmd_info["password"])
-                execute_result = ssh.read()
             elif expect_ret == 1:
                 ssh.sendline("yes\n")
                 ssh.expect("password:")
                 ssh.sendline(remote_cmd_info["password"])
             else:
                 raise exception.Invalid(_("ssh connection error UNKNOWN"))
+            execute_result = ssh.read()
         except pexpect.EOF:
             raise exception.Invalid(_("pexpect error EOF"))
         except pexpect.TIMEOUT:
