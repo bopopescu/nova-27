@@ -23,6 +23,9 @@ hpux_opts = [
     cfg.StrOpt('ignite_ip',
                default='192.168.172.52',
                help='IP for ignite server'),
+    cfg.IntOpt('ssh_timeout_seconds',
+               default=20,
+               help='Number of seconds to wait for ssh command'),
     ]
 
 CONF = cfg.CONF
@@ -43,7 +46,7 @@ class HostOps(object):
              :cpus_free: How much cpu is free
              :memory_free: How much space is free (in MB)
         """
-        info = {'cpus_free': 0, 'memory_free': 0}
+        info = {'cpus_free': 0, 'mem_free': 0}
         cmd_for_npar = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
@@ -55,10 +58,10 @@ class HostOps(object):
         for item in results:
             if 'Available CPUs' in item:
                 # item likes '[Available CPUs]:  5\r'
-                info['cpus_free'] = item.split(':')[1].strip()
+                info['cpus_free'] = int(item.split(':')[1].strip())
             elif 'Available Memory' in item:
                 # item likes '[Available Memory]:  55936 Mbytes\r'
-                info['memory_free'] = item.split(':')[1].split()[0].strip()
+                info['mem_free'] = int(item.split(':')[1].split()[0].strip())
             else:
                 continue
         return info
@@ -136,9 +139,9 @@ class HostOps(object):
                 elif attr.getAttribute('name') == 'hostname':
                     client_dict['hostname'] = attr.firstChild.nodeValue
                 elif attr.getAttribute('name') == 'memory':
-                    client_dict['memory_total'] = attr.firstChild.nodeValue
+                    client_dict['memory'] = int(attr.firstChild.nodeValue)
                 elif attr.getAttribute('name') == 'cpus':
-                    client_dict['cpus_total'] = attr.firstChild.nodeValue
+                    client_dict['cpus'] = int(attr.firstChild.nodeValue)
                 else:
                     continue
             if 'nPar' in client_dict['model']:
@@ -174,20 +177,24 @@ class HostOps(object):
     def _update_status(self):
         LOG.debug(_("Updating host stats"))
 
-        data = {}
-        data['supported_instances'] = []
-
+        data = {
+            'vcpus': 0,
+            'memory_mb': 0,
+            'vcpus_used': 0,
+            'memory_mb_used': 0,
+            'supported_instances': []
+        }
         admin_context = context.get_admin_context()
         npar_list, vpar_list = self._get_client_list()
         for npar in npar_list:
             update_info = {}
-            cpu_mem_dict = self._get_cpu_and_memory_mb_free(npar['ip_addr'])
-            update_info['vcpus_used'] = (npar['cpus_total'] -
+            cpu_mem_dict = self._get_cpu_and_memory_mb_free('192.168.169.100')
+            update_info['vcpus_used'] = (npar['cpus'] -
                                          cpu_mem_dict['cpus_free'])
-            update_info['memory_used'] = (npar['memory_total'] -
-                                             cpu_mem_dict['memory_free'])
-            update_info['vcpus'] = npar['cpus_total']
-            update_info['memory'] = npar['memory_total']
+            update_info['memory_used'] = (npar['memory'] -
+                                          cpu_mem_dict['mem_free'])
+            update_info['vcpus'] = npar['cpus']
+            update_info['memory'] = npar['memory']
             # Try to create/update npar info into table "nPar_resource"
             npar_resource = db.npar_get_by_ip(admin_context, npar['ip_addr'])
             if npar_resource:
@@ -197,8 +204,8 @@ class HostOps(object):
                 update_info['ip_addr'] = npar['ip_addr']
                 db.npar_resource_create(admin_context, update_info)
             # Sum up all the nPar resources
-            data['vcpus'] += npar['cpus_total']
-            data['memory_mb'] += npar['memory_total']
+            data['vcpus'] += npar['cpus']
+            data['memory_mb'] += npar['memory']
             data['vcpus_used'] += update_info['vcpus_used']
             data['memory_mb_used'] += update_info['memory_used']
 

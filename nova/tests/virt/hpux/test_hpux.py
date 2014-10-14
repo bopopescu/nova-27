@@ -10,12 +10,6 @@ from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
 
 
-class FakeInstance(object):
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
-
-
 class HPUXDriverTestCase(test.NoDBTestCase):
     """Unit tests for HP-UX driver calls."""
 
@@ -137,22 +131,26 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_list_instances.assert_called_once_with()
 
     @mock.patch.object(vparops.VParOps, 'destroy')
-    def test_destroy(self, mock_destroy):
+    @mock.patch.object(hpux_driver.HPUXDriver, 'instance_exists')
+    def test_destroy(self, mock_instance_exists, mock_destroy):
         fake_context = context.get_admin_context()
-        fake_instance = FakeInstance()
+        fake_instance = {'display_name': 'vpar-test'}
         fake_network_info = {
             'fixed_ip': '1.1.1.1',
             'floating_ip': '11.11.11.11'
         }
+        mock_instance_exists.return_value = True
         conn = hpux_driver.HPUXDriver(None)
         conn.destroy(fake_context, fake_instance, fake_network_info)
+        mock_instance_exists.assert_called_once_with(
+                                             fake_instance['display_name'])
         mock_destroy.assert_called_once_with(fake_context,
                                              fake_instance, fake_network_info)
 
     @mock.patch.object(vparops.VParOps, 'spawn')
     def test_spawn(self, mock_spawn):
         fake_context = context.get_admin_context()
-        fake_instance = FakeInstance()
+        fake_instance = {'display_name': 'vpar-test'}
         fake_image_meta = {
             'image_id': '111111111111111',
             'image_name': 'fake_image_name_1'

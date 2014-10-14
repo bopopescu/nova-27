@@ -8,6 +8,9 @@ import pexpect
 
 from nova import exception
 from nova.openstack.common.gettextutils import _
+from oslo.config import cfg
+
+CONF = cfg.CONF
 
 
 class ExecRemoteCmd(object):
@@ -20,7 +23,7 @@ class ExecRemoteCmd(object):
                                  remote_cmd_info["command"]))
             expect_ret = ssh.expect(['Password:',
                                      'continue connecting (yes/no)?'],
-                                    timeout=20)
+                                    timeout=CONF.hpux.ssh_timeout_seconds)
             if expect_ret == 0:
                 ssh.sendline(remote_cmd_info["password"])
             elif expect_ret == 1:
