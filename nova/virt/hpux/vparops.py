@@ -27,9 +27,22 @@ class VParOps(object):
         # to avoid frequent interaction with ignite server.
         #admin_context = context.get_admin_context()
         #npar_list = db.npar_get_all(admin_context)
+
         npar_list, vpar_list = hostops.HostOps()._get_client_list()
-        for vpar in vpar_list:
-            vpar_names.append(vpar['name'])
+        for npar in npar_list:
+            cmd_for_npar = {
+                'username': CONF.hpux.username,
+                'password': CONF.hpux.password,
+                'ip_address': npar['ip_addr'],
+                'command': '/opt/hpvm/bin/vparstatus'
+            }
+            exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_npar)
+            #Vpar status 'RunState' at location (row 3, column 3) in the
+            #returned string exec_result
+            retult = exec_result.strip().split('\n', 3)[2]
+            if retult.split()[2] is 'UP':
+                vpar_names.append(retult.split()[1])
+
         return vpar_names
 
     def get_info(self, instance):
