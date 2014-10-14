@@ -4,7 +4,7 @@ import mock
 
 from nova import test
 from nova.virt.hpux import driver as hpux_driver
-from nova.virt.hpux import vparops
+from nova.virt.hpux import hostops
 from oslo.config import cfg
 
 CONF = cfg.CONF
@@ -12,7 +12,7 @@ CONF = cfg.CONF
 
 class VParOpsTestCase(test.TestCase):
 
-    @mock.patch.object(vparops.VParOps, '_get_client_list')
+    @mock.patch.object(hostops.HostOps, '_get_client_list')
     def test_list_instances(self, mock_get_client_list):
         vpar_names = []
         fake_npar_list = [{'name': 'npar1', 'model': 'nPar',

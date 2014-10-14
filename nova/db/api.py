@@ -1927,6 +1927,7 @@ def archive_deleted_rows_for_table(context, tablename, max_rows=None):
 
 ####################
 
+
 def npar_resource_create(context, values):
     """Create a new nPar_resource."""
     return IMPL.npar_resource_create(context, values)
@@ -1944,3 +1945,7 @@ def npar_resource_update(context, npar_id, values):
 def npar_resource_delete(context, npar_id):
     """Delete the npar record."""
     return IMPL.npar_resource_delete(context, npar_id)
+
+
+def npar_get_by_ip(context, ip_addr):
+    pass
