@@ -34,7 +34,7 @@ class HPUXDriver(driver.ComputeDriver):
     def get_available_resource(self, nodename):
         """Retrieve resource information.
 
-        This method is called when nova-compute launches, and
+        This method is called when nova-compute launches    , and
         as part of a periodic task that records the results in the DB.
 
         :param nodename: will be put in PCI device
@@ -94,7 +94,8 @@ class HPUXDriver(driver.ComputeDriver):
         :param destroy_disks:
         :return:
         """
-        self._vparops.destroy(context, instance, network_info)
+        if self.instance_exists(instance['display_name']):
+            self._vparops.destroy(context, instance, network_info)
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):

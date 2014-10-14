@@ -4,7 +4,25 @@ __author__ = 'psteam'
 Management class for basic vPar operations.
 """
 
+from nova import exception
 from nova.virt.hpux import hostops
+from nova.virt.hpux import utils
+from oslo.config import cfg
+
+hpux_opts = [
+    cfg.StrOpt('username',
+               default='root',
+               help='Username for ssh command'),
+    cfg.StrOpt('password',
+               default='root',
+               help='Password for ssh command'),
+    cfg.StrOpt('ignite_ip',
+               default='192.168.172.52',
+               help='IP for ignite server'),
+    ]
+
+CONF = cfg.CONF
+CONF.register_opts(hpux_opts, 'hpux')
 
 
 class VParOps(object):
@@ -28,10 +46,37 @@ class VParOps(object):
         return vpar_names
 
     def get_info(self, instance):
-        return {}
+        pass
 
     def destroy(self, context, instance, network_info):
-        pass
+        #power off the vpar before vparremove
+        exec_result = None
+        try:
+            cmd_for_destroy = {
+                'username': CONF.hpux.username,
+                'password': CONF.hpux.password,
+                'ip_address': instance['host'],
+                'command': '/opt/hpvm/bin/vparreset -p ' +
+                           instance['display_name'] + ' -d -f'
+            }
+            exec_result = utils.ExecRemoteCmd().\
+                exec_remote_cmd(**cmd_for_destroy)
+            # delete a vPar
+            # vparremove -p <vpar_name> -f
+            if exec_result != None:
+                cmd_for_destroy = {
+                    'username': CONF.hpux.username,
+                    'password': CONF.hpux.password,
+                    'ip_address': instance['host'],
+                    'command': '/opt/hpvm/bin/vparremove -p ' +
+                               instance['display_name'] + ' -f'
+                 }
+            exec_result = utils.ExecRemoteCmd().exec_remote_cmd(
+                **cmd_for_destroy)
+        except utils.ExceptionPexpect as e:
+            raise exception.Invalid(("Destroy instance error UNKNOWN"))
+        finally:
+            return exec_result
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
