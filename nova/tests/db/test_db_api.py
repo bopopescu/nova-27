@@ -7222,3 +7222,10 @@ class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
         ret = db.npar_resource_update(self.ctxt, 1, value)
 
         self.assertEqual(3, ret['vcpus'])
+
+    def test_npar_resource_delete(self):
+        value = {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 3}
+        self._create_npar_resource(value)
+        db.npar_resource_delete(self.ctxt, 1)
+        expected = db.npar_get_all(self.ctxt)
+        self.assertEqual(0, len(expected))

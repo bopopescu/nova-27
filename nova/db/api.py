@@ -1939,3 +1939,8 @@ def npar_get_all(context):
 def npar_resource_update(context, npar_id, values):
     """Update the record in DB."""
     return IMPL.npar_resource_update(context, npar_id, values)
+
+
+def npar_resource_delete(context, npar_id):
+    """Delete the npar record."""
+    return IMPL.npar_resource_delete(context, npar_id)

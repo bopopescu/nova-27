@@ -6102,3 +6102,12 @@ def npar_resource_update(context, npar_id, values):
     npar = _npar_id_get(context, npar_id, session=None)
     npar.update(values)
     return npar
+
+
+@require_admin_context
+def npar_resource_delete(context, npar_id):
+    ret = model_query(context, models.NParResource, session=None).\
+                      filter_by(id=npar_id).\
+                      soft_delete(synchronize_session=False)
+    if not ret:
+        raise exception.NparNotFound(host=npar_id)
