@@ -37,8 +37,8 @@ class VParOps(object):
                 'command': '/opt/hpvm/bin/vparstatus'
             }
             exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_npar)
-            #Vpar status 'RunState' at location (row 3, column 3) in the
-            #returned string exec_result
+            # Vpar status 'RunState' at location (row 3, column 3) in the
+            # returned string exec_result
             retult = exec_result.strip().split('\n', 3)[2]
             if retult.split()[2] is 'UP':
                 vpar_names.append(retult.split()[1])

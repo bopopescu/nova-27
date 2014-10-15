@@ -57,6 +57,14 @@ class HPUXDriver(driver.ComputeDriver):
         """
         return self._vparops.get_info(instance)
 
+    def get_num_instances(self):
+        """Get the current number of vpar
+
+        Return integer with the number of running instances
+        """
+        instances_list = self.list_instances()
+        return len(instances_list)
+
     def scheduler_dispatch(self, context, vPar_info):
         """Lookup target nPar.
 

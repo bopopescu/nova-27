@@ -122,13 +122,17 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_list_instances.assert_any_call()
         assert 2 == mock_list_instances.call_count
 
+    @mock.patch.object(hpux_driver.HPUXDriver, 'get_num_instances')
     @mock.patch.object(hpux_driver.HPUXDriver, 'list_instances')
-    def test_get_num_instances(self, mock_list_instances):
+    def test_get_num_instances(self, mock_list_instances,
+                               mock_get_num_instances):
         fake_instances = ['fake1', 'fake2']
         mock_list_instances.return_value = fake_instances
+        mock_get_num_instances.return_value = 2
         conn = hpux_driver.HPUXDriver(None)
-        self.assertEqual(2, conn.get_num_instances())
-        mock_list_instances.assert_called_once_with()
+        instances = conn.get_num_instances()
+        self.assertEqual(len(fake_instances), instances)
+        mock_get_num_instances.assert_called_once_with()
 
     @mock.patch.object(vparops.VParOps, 'destroy')
     @mock.patch.object(hpux_driver.HPUXDriver, 'instance_exists')
