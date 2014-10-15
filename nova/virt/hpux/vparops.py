@@ -81,3 +81,19 @@ class VParOps(object):
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         pass
+
+    def creaete_lv(self,volume_dic):
+        """create logic volume for vpar
+        :param: dict,include volume, name, path, ipaddress
+        :returns: A list of up(running) vPar name
+        """
+        cmd_for_lvcreate = {
+                'username': CONF.hpux.username,
+                'password': CONF.hpux.password,
+                'ip_address': volume_dic['ip_addr'],
+                'command': 'lvcreate -L '+ volume_dic['volume'] +
+                           ' -n ' + volume_dic['volum_nm'] +
+                           ' ' + volume_dic['path']
+            }
+        return utils.ExecRemoteCmd().exec_remote_cmd(
+                **cmd_for_lvcreate)
