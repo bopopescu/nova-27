@@ -74,7 +74,8 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_get_info.return_value = fake_info
         conn = hpux_driver.HPUXDriver(None, vparops=vparops.VParOps())
         fake_instance = {
-            'name': 'fake1'
+            'name': 'fake1',
+            'ip_addr': '192.168.0.1'
         }
         instance_info = conn.get_info(fake_instance)
         self.assertEqual(fake_info, instance_info)

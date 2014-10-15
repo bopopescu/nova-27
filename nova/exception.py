@@ -1555,3 +1555,7 @@ class NoBlockMigrationForConfigDriveInLibVirt(NovaException):
 
 class NparNotFound(NotFound):
     msg_fmt = _("Npar record %(npar) could not be found.")
+
+
+class VparNotFound(NotFound):
+    msg_fmt = _("Vpar %(vpar) could not be found.")
