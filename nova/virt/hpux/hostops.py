@@ -26,6 +26,9 @@ hpux_opts = [
     cfg.IntOpt('ssh_timeout_seconds',
                default=20,
                help='Number of seconds to wait for ssh command'),
+    cfg.StrOpt('vg_name',
+               default='/dev/vg00',
+               help='Volume group of nPar for creating logical volume'),
     ]
 
 CONF = cfg.CONF
@@ -66,19 +69,39 @@ class HostOps(object):
                 continue
         return info
 
-    def _get_local_gb_info(self):
+    def _get_local_gb_info(self, ip_addr):
         """Get local storage info of the compute node in GB.
 
+        :param ip_addr: IP address of specified nPar
         :returns: A dict containing:
              :total: How big the overall usable filesystem is (in gigabytes)
              :free: How much space is free (in gigabytes)
              :used: How much space is used (in gigabytes)
         """
         info = {}
-        info['total'] = 100
-        info['free'] = 80
-        info['used'] = 20
-
+        cmd_for_npar = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': ip_addr,
+            'command': 'vgdisplay ' + CONF.hpux.vg_name
+        }
+        exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_npar)
+        results = exec_result.strip().split('\n')
+        for item in results:
+            if 'PE Size (Mbytes)' in item:
+                # item likes 'PE Size (Mbytes)  64  \r'
+                pe_size = int(item.split()[3].strip())
+            elif 'Total PE' in item:
+                # item likes 'Total PE  8922  \r'
+                total_pe = int(item.split()[2].strip())
+            elif 'Alloc PE' in item:
+                # item likes 'Alloc PE  7469  \r'
+                used_pe = int(item.split()[2].strip())
+            else:
+                continue
+        info['total'] = pe_size * total_pe / 1024
+        info['used'] = pe_size * used_pe / 1024
+        info['free'] = info['total'] - info['used']
         return info
 
     def _get_hypervisor_type(self):
@@ -139,7 +162,8 @@ class HostOps(object):
                 elif attr.getAttribute('name') == 'hostname':
                     client_dict['hostname'] = attr.firstChild.nodeValue
                 elif attr.getAttribute('name') == 'memory':
-                    client_dict['memory'] = int(attr.firstChild.nodeValue)
+                    mem = attr.firstChild.nodeValue
+                    client_dict['memory'] = int(mem) / 1024
                 elif attr.getAttribute('name') == 'cpus':
                     client_dict['cpus'] = int(attr.firstChild.nodeValue)
                 else:
@@ -182,19 +206,31 @@ class HostOps(object):
             'memory_mb': 0,
             'vcpus_used': 0,
             'memory_mb_used': 0,
+            'local_gb': 0,
+            'local_gb_used': 0,
             'supported_instances': []
         }
         admin_context = context.get_admin_context()
         npar_list, vpar_list = self._get_client_list()
+        # TODO(Sunny): Delete the hard code "npar_list"
+        # Do the deletion after all functions are ready,
+        # here 'npar_list' is just for testing.
+        npar_list = [{'ip_addr': u'192.168.169.100',
+                      'name': u'bl890npar1', 'hostname': u'bl890npar1',
+                      'cpus': 8, 'memory': 66994944 / 1024,
+                      'model': u'ia64 hp Integrity BL890c i4 nPar'}]
         for npar in npar_list:
             update_info = {}
-            cpu_mem_dict = self._get_cpu_and_memory_mb_free('192.168.169.100')
+            cpu_mem_dict = self._get_cpu_and_memory_mb_free(npar['ip_addr'])
+            disk_info_dict = self._get_local_gb_info(npar['ip_addr'])
             update_info['vcpus_used'] = (npar['cpus'] -
                                          cpu_mem_dict['cpus_free'])
             update_info['memory_used'] = (npar['memory'] -
                                           cpu_mem_dict['mem_free'])
             update_info['vcpus'] = npar['cpus']
             update_info['memory'] = npar['memory']
+            update_info['disk'] = disk_info_dict['total']
+            update_info['disk_used'] = disk_info_dict['used']
             # Try to create/update npar info into table "nPar_resource"
             npar_resource = db.npar_get_by_ip(admin_context, npar['ip_addr'])
             if npar_resource:
@@ -208,11 +244,9 @@ class HostOps(object):
             data['memory_mb'] += npar['memory']
             data['vcpus_used'] += update_info['vcpus_used']
             data['memory_mb_used'] += update_info['memory_used']
+            data['local_gb'] += disk_info_dict['total']
+            data['local_gb_used'] += disk_info_dict['used']
 
-        # Here, disk info is still fake data.
-        disk_info_dict = self._get_local_gb_info()
-        data['local_gb'] = disk_info_dict['total']
-        data['local_gb_used'] = disk_info_dict['used']
         data['hypervisor_type'] = self._get_hypervisor_type()
         data['hypervisor_version'] = self._get_hypervisor_version()
         data['hypervisor_hostname'] = self._get_hypervisor_hostname()
