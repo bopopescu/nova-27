@@ -112,6 +112,13 @@ class HPUXDriver(driver.ComputeDriver):
         if self.instance_exists(instance['display_name']):
             self._vparops.destroy(context, instance, network_info)
 
+    def get_mac_addr(self, ip_addr):
+        """Get mac address of nPar site lan
+        :param ip_addr:
+        :return: mac address
+        """
+        return self._vparops.get_mac_addr(ip_addr)
+
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         """Spawn new vapr
