@@ -91,6 +91,13 @@ class HPUXDriver(driver.ComputeDriver):
             continue
         return False
 
+    def get_instance_host_name(self, ip_addr):
+        """Get the host (nPar) name of a given instance.
+
+        Return string of nPar name
+        """
+        return self._vparops.get_instance_host_name(ip_addr)
+
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
         """Destroy specific vpar

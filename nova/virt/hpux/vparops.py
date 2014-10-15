@@ -8,6 +8,7 @@ from nova import exception
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
 from oslo.config import cfg
+#from nova import db
 
 CONF = cfg.CONF
 
@@ -15,6 +16,10 @@ CONF = cfg.CONF
 class VParOps(object):
 
     def __init__(self):
+        pass
+
+    def get_instance_host_name(self, ip_addr):
+        # Will get the host name (napr_name) of given vpar reading from DB.
         pass
 
     def list_instances(self):

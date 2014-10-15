@@ -122,6 +122,20 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_list_instances.assert_any_call()
         assert 2 == mock_list_instances.call_count
 
+    @mock.patch.object(vparops.VParOps, 'get_instance_host_name')
+    def test_get_instance_host_name(self, mock_get_instance_host_name):
+        fake_host_name = 'napr1'
+        fake_instance = {
+            'name': 'vpar1',
+            'ip_addr': '192.168.0.1'
+        }
+        mock_get_instance_host_name.return_value = fake_host_name
+        conn = hpux_driver.HPUXDriver(None, vparops=vparops.VParOps())
+        host_name = conn.get_instance_host_name(fake_instance['ip_addr'])
+        self.assertEqual(fake_host_name, host_name)
+        mock_get_instance_host_name.assert_called_once_with(
+                                                    fake_instance['ip_addr'])
+
     @mock.patch.object(hpux_driver.HPUXDriver, 'get_num_instances')
     @mock.patch.object(hpux_driver.HPUXDriver, 'list_instances')
     def test_get_num_instances(self, mock_list_instances,
