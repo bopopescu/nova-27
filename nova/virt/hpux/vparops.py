@@ -143,6 +143,36 @@ class VParOps(object):
                 'command': 'lvcreate -L '+ volume_dic['volume'] +
                            ' -n ' + volume_dic['volum_nm'] +
                            ' ' + volume_dic['path']
-            }
+        }
         return utils.ExecRemoteCmd().exec_remote_cmd(
                 **cmd_for_lvcreate)
+
+    def define_vpar(self,vpar_dic):
+        """create  vpar
+        :param: dict,include vparname, memory size, path, ipaddress, CPU numbers
+        :returns: A list of up(running) vPar name
+        """
+        cmd_for_vparcreate = {
+                'username': CONF.hpux.username,
+                'password': CONF.hpux.password,
+                'ip_address': volume_dic['ip_addr'],
+                'command': 'vparcreate -p ' + vpar_dic['vpar_nm'] +
+                           ' -a mem::' + vpar_dic['mem_size'] + '-a cpu::' +
+                           vpar_dic['vcpu'] + ' -a disk:avio_stor::lv:' +
+                           vpar_dic['path'] + '-a network:avio_lan::vswitch:' +
+                           'sitelan' + ' -a network:avio_lan::vswitch:' +
+                            'localnet'
+        }
+        return utils.ExecRemoteCmd().exec_remote_cmd(
+                **cmd_for_vparcreate)
+
+
+
+    def init_vpar(self):
+        pass
+
+    def get_mac(self):
+        pass
+
+    def register_vpar_into_ignite(self):
+        pass
