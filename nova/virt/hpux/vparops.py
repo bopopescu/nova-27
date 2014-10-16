@@ -5,11 +5,14 @@ Management class for basic vPar operations.
 """
 
 import time
+import os
+import pexpect
 
 from nova import exception
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
 from oslo.config import cfg
+from nova.openstack.common.gettextutils import _
 #from nova import db
 
 CONF = cfg.CONF
@@ -341,3 +344,63 @@ class VParOps(object):
             }
             utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         return True
+
+    def ft_boot_vpar(self,ip_addr,profile_name):
+        child_pid=os.fork()
+        if child_pid==0:
+            cmd_for_lanboot = 'lanboot select -dn ' + profile_name
+            ssh = pexpect.spawn('ssh %s@%s "%s"' % ('root' ,ip_addr ,cmd_for_lanboot))
+            expect_ret = ssh.expect(['Password:',
+                                     'continue connecting (yes/no)?'],
+                                    timeout=CONF.hpux.ssh_timeout_seconds)
+            if expect_ret == 0:
+                ssh.sendline('root')
+            elif expect_ret == 1:
+                ssh.sendline("yes\n")
+                ssh.expect("password:")
+                ssh.sendline('root')
+            else:
+                raise exception.Invalid(_("ssh connection error UNKNOWN"))
+            ssh.expect("NIC")
+            ssh.sendline('01')
+            ssh.close()
+        else:
+            ret=1
+            while ret>0:
+                cmd_for_lanboot = 'ps aux | grep lanboot'
+                execute_result = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_lanboot)
+                stat = execute_result.split()
+                ret=stat[1]
+                time.sleep(60)
+        return True
+
+    def init_vhba(self,vhba_info):
+        #Attach vhba
+        cmd_for_vhba = {
+            'username': 'root',
+            'password': 'root',
+            'ip_address': vhba_info['host'],
+            'command': 'vparreset -f -p ' + vhba_info['vpar_name'] + ' -d'
+        }
+        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vhba)
+        #Force to reset vPar, must succeed:
+        cmd_for_vhba = {
+            'username': 'root',
+            'password': 'root',
+            'ip_address': vhba_info['host'],
+            'command': 'vparmodify -p ' + vhba_info['vpar_name'] + ' -a ' +
+                       vhba_info['vpar_component'] + ':avio_stor:,,' +
+                       vhba_info['wwpn'] + ',' + vhba_info['wwnn'] +
+                       ':npiv:/dev/fcd0'
+        }
+        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vhba)
+        return True
+
+    def boot_vpar(self, vpar_info):
+        cmd_for_boot = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': vpar_info['host'],
+            'command': 'vparboot -p ' + vpar_info['vpar_name']
+        }
+        return utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_boot)
