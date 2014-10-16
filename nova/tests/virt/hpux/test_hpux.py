@@ -194,3 +194,15 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mac_addr = conn.get_mac_addr(fake_ip_addr)
         self.assertEqual(fake_mac_addr, mac_addr)
         mock_get_mac_addr.assert_called_once_with(fake_ip_addr)
+
+    @mock.patch.object(vparops.VParOps, 'init_vpar')
+    def test_init_vpar(self, mock_init_vpar):
+        fake_vpar_info = {
+            'vpar_name': 'vpar_fake1',
+            'ip_addr': '192.168.0.1'
+        }
+        mock_init_vpar.return_value = True
+        conn = hpux_driver.HPUXDriver(None)
+        exec_result = conn.init_vpar(fake_vpar_info)
+        self.assertTrue(exec_result)
+        mock_init_vpar.assert_called_once_with(fake_vpar_info)
