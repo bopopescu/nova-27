@@ -129,6 +129,40 @@ class VParOps(object):
         finally:
             return exec_result
 
+    def define_dbprofile(self, prof_define_info):
+        """Define dbprofile in EFI shell to prepare later vPar installing.
+        :param: A dict contains all of the needed info for dbprofile define,
+                - vPar name (vpar_name)
+                - nPar IP address (ip_addr)
+                - Ignite-UX server IP address (sip)
+                - Ignite client IP address (cip)
+                - Ignite client  server Gateway IP address (gip)
+                - Ignite client  server Network mask (mask)
+        :return: Name of defined profile if success.
+        """
+        prof_name = 'profile_hpux'
+        #Hard code the Ignite-UX server IP address for now
+        prof_define_info['sip'] = '192.168.172.51'
+        try:
+            cmd_for_dbprofile_define = {
+                'username': CONF.hpux.username,
+                'vpar_name': prof_define_info['vpar_name'],
+                'ip_address': prof_define_info['ip_address'],
+                'remote_command': '/opt/hpvm/bin/vparconsole -p ' +
+                                  prof_define_info['vpar_name'],
+                'efi_command': 'dbprofile -dn ' + prof_name + ' -sip ' +
+                                  prof_define_info['sip'] + ' -cip ' +
+                                  prof_define_info['cip'] + ' -gip ' +
+                                  prof_define_info['gip'] + ' -m ' +
+                                  prof_define_info['mask']
+            }
+            utils.ExecRemoteCmd.exec_efi_cmd(**cmd_for_dbprofile_define)
+        except utils.ExceptionPexpect as e:
+            raise exception.Invalid(("Failed to define dbprofile"))
+        finally:
+            if not e:
+                return prof_name
+
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         pass
