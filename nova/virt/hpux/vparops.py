@@ -4,15 +4,15 @@ __author__ = 'psteam'
 Management class for basic vPar operations.
 """
 
-import time
 import os
 import pexpect
+import time
 
+from nova.openstack.common.gettextutils import _
 from nova import exception
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
 from oslo.config import cfg
-from nova.openstack.common.gettextutils import _
 #from nova import db
 
 CONF = cfg.CONF
@@ -208,14 +208,14 @@ class VParOps(object):
                 'username': CONF.hpux.username,
                 'password': CONF.hpux.password,
                 'ip_address': volume_dic['ip_addr'],
-                'command': 'lvcreate -L '+ volume_dic['volume'] +
+                'command': 'lvcreate -L ' + volume_dic['volume'] +
                            ' -n ' + volume_dic['volum_nm'] +
                            ' ' + volume_dic['path']
         }
         return utils.ExecRemoteCmd().exec_remote_cmd(
                 **cmd_for_lvcreate)
 
-    def define_vpar(self,vpar_dic):
+    def define_vpar(self, vpar_dic):
         """create  vpar
         :param: dict,include vparname, memory size, path, ipaddress, CPU
                 numbers
@@ -284,7 +284,7 @@ class VParOps(object):
                 mac_addr = item.strip().split(':')[2].split(',')[3]
         return mac_addr
 
-    def register_vpar_into_ignite(self,vpar_info):
+    def register_vpar_into_ignite(self, vpar_info):
         #create and config ./etc/bootptab
         cmd_for_vparclient = {
             'username': CONF.hpux.username,
@@ -297,7 +297,7 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'echo ' + vpar_info['vpar_name']  +' >> ./etc/bootptab'
+            'command': 'echo ' + vpar_info['vpar_name'] + ' >> ./etc/bootptab'
         }
         utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         cmd_for_vparclient = {
@@ -311,7 +311,7 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'echo ha = ' + vpar_info['mac']  +' >> ./etc/bootptab'
+            'command': 'echo ha = ' + vpar_info['mac'] + ' >> ./etc/bootptab'
         }
         utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         cmd_for_vparclient = {
@@ -325,21 +325,22 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'echo gw=' + vpar_info['gateway']  +' >> ./etc/bootptab'
+            'command': 'echo gw=' + vpar_info['gateway'] + ' >> ./etc/bootptab'
         }
         utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         cmd_for_vparclient = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'echo ip=' + vpar_info['host']  +' >> ./etc/bootptab'
+            'command': 'echo ip=' + vpar_info['host'] + ' >> ./etc/bootptab'
         }
         utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         cmd_for_vparclient = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'echo sm=' + vpar_info['subnet_mask']  +' >> ./etc/bootptab'
+            'command': 'echo sm=' + vpar_info['subnet_mask'] +
+                       ' >> ./etc/bootptab'
         }
         utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         #/var/opt/ignite/auto/set_client.sh
@@ -360,8 +361,8 @@ class VParOps(object):
                        '+=\\\"INST_ALLOW_WARNINGS=5\\\"\''
                        ' ./opt/ignite/boot/Rel_B.11.31/AUTO'
         }
-        ret=utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        if ret==0 :
+        ret = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
+        if ret == 0:
             cmd_for_vparclient = {
                 'username': CONF.hpux.username,
                 'password': CONF.hpux.password,
@@ -374,11 +375,11 @@ class VParOps(object):
             utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         return True
 
-    def ft_boot_vpar(self,ip_addr,profile_name):
-        child_pid=os.fork()
-        if child_pid==0:
+    def ft_boot_vpar(self, ip_addr, profile_name):
+        child_pid = os.fork()
+        if child_pid == 0:
             cmd_for_lanboot = 'lanboot select -dn ' + profile_name
-            ssh = pexpect.spawn('ssh %s@%s "%s"' % ('root' ,ip_addr ,cmd_for_lanboot))
+            ssh = pexpect.spawn('ssh %s@%s "%s"' % ('root', ip_addr, cmd_for_lanboot))
             expect_ret = ssh.expect(['Password:',
                                      'continue connecting (yes/no)?'],
                                     timeout=CONF.hpux.ssh_timeout_seconds)
@@ -394,16 +395,16 @@ class VParOps(object):
             ssh.sendline('01')
             ssh.close()
         else:
-            ret=1
-            while ret>0:
+            ret = 1
+            while ret > 0:
                 cmd_for_lanboot = 'ps aux | grep lanboot'
                 execute_result = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_lanboot)
                 stat = execute_result.split()
-                ret=stat[1]
+                ret = stat[1]
                 time.sleep(60)
         return True
 
-    def init_vhba(self,vhba_info):
+    def init_vhba(self, vhba_info):
         #Attach vhba
         cmd_for_vhba = {
             'username': 'root',
