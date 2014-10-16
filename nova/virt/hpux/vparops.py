@@ -4,6 +4,8 @@ __author__ = 'psteam'
 Management class for basic vPar operations.
 """
 
+import time
+
 from nova import exception
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
@@ -149,7 +151,8 @@ class VParOps(object):
 
     def define_vpar(self,vpar_dic):
         """create  vpar
-        :param: dict,include vparname, memory size, path, ipaddress, CPU numbers
+        :param: dict,include vparname, memory size, path, ipaddress, CPU
+                numbers
         :returns: A list of up(running) vPar name
         """
         cmd_for_vparcreate = {
@@ -166,8 +169,35 @@ class VParOps(object):
         return utils.ExecRemoteCmd().exec_remote_cmd(
                 **cmd_for_vparcreate)
 
-    def init_vpar(self):
-        pass
+    def init_vpar(self, vpar_info):
+        """Initialize the defined vpar so that could enter live console mode
+        :param: A dict of vpar info including vpar_name and ip_addr
+        :return: True if success as vpar run state turn into 'EFI'
+        """
+        cmd_for_vpar_init = {
+                'username': CONF.hpux.username,
+                'password': CONF.hpux.password,
+                'ip_address': vpar_info['ip_addr'],
+                'command': '/opt/hpvm/bin/vparreset/vparboot -p ' +
+                           vpar_info['vpar_name']
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_vpar_init)
+        # Sleep for a while to wait initialization completed.
+        time.sleep(10)
+
+        # Check RunState 'EFI' for whether it executed successfully
+        cmd_for_init_check = {
+                'username': CONF.hpux.username,
+                'password': CONF.hpux.password,
+                'ip_address': vpar_info['ip_addr'],
+                'command': '/opt/hpvm/bin/vparreset/vparstatus'
+        }
+        exec_result = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_init_check)
+        run_state = exec_result.strip().split('\n', 3)[2]
+        if run_state is 'EFI':
+            return True
+        else:
+            return False
 
     def get_mac_addr(self, ip_addr):
         """Get mac address of nPar site lan

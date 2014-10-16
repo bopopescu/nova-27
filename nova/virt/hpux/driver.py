@@ -112,9 +112,16 @@ class HPUXDriver(driver.ComputeDriver):
         if self.instance_exists(instance['display_name']):
             self._vparops.destroy(context, instance, network_info)
 
+    def init_vpar(self, vpar_info):
+        """Initialize the defined vPar.
+        :param: A dict of vPar info including vPar name and ip address
+        :return: True or False for whether it executes successfully
+        """
+        return self._vparops.init_vpar(vpar_info)
+
     def get_mac_addr(self, ip_addr):
         """Get mac address of nPar site lan
-        :param ip_addr:
+        :param: ip_addr:
         :return: mac address
         """
         return self._vparops.get_mac_addr(ip_addr)
