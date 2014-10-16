@@ -59,7 +59,7 @@ class ExecRemoteCmd(object):
                                  efi_cmd_info["remote_command"]))
             except_ret = ssh.expect([efi_cmd_info["vpar_name"]] + ' vMP>',
                                     timeout=CONF.hpux.ssh_timeout_seconds)
-            if except_ret == 1:
+            if except_ret == 0:
                 ssh.sendline('CO')
                 ssh.expect("Shell>")
                 ssh.sendline(efi_cmd_info["efi_command"])
