@@ -62,3 +62,17 @@ class VParOpsTestCase(test.TestCase):
         ret = conn._vparops.define_dbprofile(fake_prof_define_info)
         self.assertEqual(fake_prof_name, ret)
         mock_define_dbprofile.assert_called_once_with(fake_prof_define_info)
+
+    @mock.patch.object(vparops.VParOps, 'update_dbprofile')
+    def test_update_dbprofile(self, mock_update_dbprofile):
+        fake_prof_update_info = {
+            'vpar_name': 'vpar_one',
+            'ip_address': '192.168.0.100',
+            'prof_name': 'prof_test',
+            'boot_fname': '/opt/ignite/boot/Rel_B.11.31/nbp.efi'
+        }
+        mock_update_dbprofile.return_value = True
+        conn = hpux_driver.HPUXDriver(None)
+        ret = conn._vparops.update_dbprofile(fake_prof_update_info)
+        self.assertTrue(mock_update_dbprofile)
+        mock_update_dbprofile.assert_called_once_with(fake_prof_update_info)

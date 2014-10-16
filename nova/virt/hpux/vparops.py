@@ -136,7 +136,7 @@ class VParOps(object):
         """Define dbprofile in EFI shell to prepare later vPar installing.
         :param: A dict contains all of the needed info for dbprofile define,
                 - vPar name (vpar_name)
-                - nPar IP address (ip_addr)
+                - nPar IP address (ip_address)
                 - Ignite-UX server IP address (sip)
                 - Ignite client IP address (cip)
                 - Ignite client  server Gateway IP address (gip)
@@ -165,6 +165,35 @@ class VParOps(object):
         finally:
             if not e:
                 return prof_name
+
+    def update_dbprofile(self, prof_update_info):
+        """Update defined dbprofile
+        :param: A dict contains,
+                - vPar name (vpar_name)
+                - nPar IP address (ip_address)
+                - Name of defined dbprofile (prof_name)
+                - Boot file name (boot_fname)
+        :return True in success
+        """
+        #Hard code the Ignite-UX server IP address for now
+        prof_update_info['sip'] = '192.168.172.51'
+        try:
+            cmd_for_dbprofile_update = {
+                'username': CONF.hpux.username,
+                'vpar_name': prof_update_info['vpar_name'],
+                'ip_address': prof_update_info['ip_address'],
+                'remote_command': '/opt/hpvm/bin/vparconsole -p ' +
+                                  prof_update_info['vpar_name'],
+                'efi_command': 'dbprofile -dn ' +
+                               prof_update_info['prof_name'] + ' -b ' +
+                               prof_update_info['boot_fname']
+            }
+            utils.ExecRemoteCmd.exec_efi_cmd(**cmd_for_dbprofile_update)
+        except utils.ExecRemoteCmd as e:
+            raise exception.Invalid(("Failed to update dbprofile"))
+        finally:
+            if not e:
+                return True
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
