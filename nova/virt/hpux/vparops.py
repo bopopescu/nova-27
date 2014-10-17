@@ -195,9 +195,34 @@ class VParOps(object):
             if not e:
                 return True
 
-    def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
-        pass
+    def spawn(self, context, instance, volume_dic, prof_define_info,
+              vhba_info, prof_update_info, network_info=None):
+        """Spawn vPar including before register stage and after register stage
+           - Before register stage:
+             - create lv
+             - define vPar
+             - init vPar
+             - get mac address
+             - register (configuration)
+           - After register stage:
+             - connect vPar console
+             - enter EFI shell
+             - define dbprofile
+             - select lanboot
+             - set vHBA
+             - update dbprofile
+        """
+        # Before register stage action, rough coding for now.
+        self.creaete_lv(volume_dic)
+        self.define_vpar(instance)
+        self.init_vpar(instance)
+        self.get_mac_addr(network_info['ip_addr'])
+        self.register_vpar_into_ignite(instance)
+        # After register stage action.
+        prof_name = self.define_dbprofile(prof_define_info)
+        self.ft_boot_vpar(network_info['ip_addr'], prof_name)
+        self.init_vhba(vhba_info)
+        self.update_dbprofile(prof_update_info)
 
     def creaete_lv(self, volume_dic):
         """create logic volume for vpar

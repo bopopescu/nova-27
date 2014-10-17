@@ -170,20 +170,39 @@ class HPUXDriverTestCase(test.NoDBTestCase):
     def test_spawn(self, mock_spawn):
         fake_context = context.get_admin_context()
         fake_instance = {'display_name': 'vpar-test'}
-        fake_image_meta = {
-            'image_id': '111111111111111',
-            'image_name': 'fake_image_name_1'
+        fake_volume_dic = {
+            'volume': 10000,
+            'volume_nm': 'volum_test',
+            'path': '/dev/vg0'
         }
-        fake_injected_files = None
-        fake_admin_password = 'fake_password'
+        fake_prof_define_info = {
+            'vpar_name': 'vpar_one',
+            'ip_address': '192.168.0.100',
+            'cip': '192.168.0.101',
+            'gip': '192.168.0.1',
+            'mask': '255.255.255.0'
+        }
+        fake_prof_update_info = {
+            'vpar_name': 'vpar_one',
+            'ip_address': '192.168.0.100',
+            'prof_name': 'prof_test',
+            'boot_fname': '/opt/ignite/boot/Rel_B.11.31/nbp.efi'
+        }
+        fake_vhba_info = {
+            'vpar_name': 'vpar_one',
+            'vpar_component': 'test_unknown',
+            'wwpn': 'pwwn',
+            'wwnn': 'nwwn'
+        }
         conn = hpux_driver.HPUXDriver(None)
-        conn.spawn(fake_context, fake_instance, fake_image_meta,
-                   fake_injected_files, fake_admin_password,
-                   network_info=None, block_device_info=None)
+        conn.spawn(fake_context, fake_instance, fake_volume_dic,
+                   fake_prof_define_info, fake_vhba_info,
+                   fake_prof_update_info, network_info=None)
         mock_spawn.assert_called_once_with(fake_context, fake_instance,
-                                       fake_image_meta, fake_injected_files,
-                                       fake_admin_password, network_info=None,
-                                       block_device_info=None)
+                                           fake_volume_dic,
+                                           fake_prof_define_info,
+                                           fake_vhba_info, fake_prof_update_info,
+                                           network_info=None)
 
     @mock.patch.object(vparops.VParOps, 'get_mac_addr')
     def test_get_mac_addr(self, mock_get_mac_addr):
