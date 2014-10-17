@@ -199,7 +199,8 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_spawn.assert_called_once_with(fake_context, fake_instance,
                                            fake_volume_dic,
                                            fake_prof_define_info,
-                                           fake_vhba_info, fake_prof_update_info,
+                                           fake_vhba_info,
+                                           fake_prof_update_info,
                                            network_info=None)
 
     @mock.patch.object(vparops.VParOps, 'get_mac_addr')

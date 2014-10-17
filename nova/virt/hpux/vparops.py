@@ -10,11 +10,14 @@ import time
 
 from nova import exception
 from nova.openstack.common.gettextutils import _
+from nova.openstack.common import log as logging
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
 from oslo.config import cfg
 
 CONF = cfg.CONF
+
+LOG = logging.getLogger(__name__)
 
 
 class VParOps(object):
@@ -216,7 +219,7 @@ class VParOps(object):
              - update dbprofile
         """
         # Before register stage action, rough coding for now.
-        self.creaete_lv(volume_dic)
+        self.create_lv(volume_dic)
         self.define_vpar(instance)
         self.init_vpar(instance)
         self.get_mac_addr(network_info['ip_addr'])
@@ -227,21 +230,33 @@ class VParOps(object):
         self.init_vhba(vhba_info)
         self.update_dbprofile(prof_update_info)
 
-    def creaete_lv(self, volume_dic):
-        """create logic volume for vpar
-        :param: dict,include volume, name, path, ipaddress
-        :returns: A list of up(running) vPar name
+    def create_lv(self, lv_dic):
+        """Create logical volume for vPar on specified nPar.
+
+        :param: A dict containing:
+             :lv_size: The size of logical volume
+             :lv_name: The name of logical volume
+             :vg_path: The path of volume group
+             :ip_addr: The IP address of specified nPar
+        :returns: created_lv_path: The path of created logical volume
         """
-        cmd_for_lvcreate = {
-                'username': CONF.hpux.username,
-                'password': CONF.hpux.password,
-                'ip_address': volume_dic['ip_addr'],
-                'command': 'lvcreate -L ' + volume_dic['volume'] +
-                           ' -n ' + volume_dic['volum_nm'] +
-                           ' ' + volume_dic['path']
+        lvcreate = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': lv_dic['ip_addr'],
+            'command': 'lvcreate -L ' + lv_dic['lv_size'] +
+                       ' -n ' + lv_dic['lv_name'] +
+                       ' ' + lv_dic['vg_path']
         }
-        return utils.ExecRemoteCmd().exec_remote_cmd(
-                **cmd_for_lvcreate)
+        created_lv_path = lv_dic['vg_path'] + '/r' + lv_dic['lv_name']
+        LOG.debug(_("Begin to create logical volume %s.")
+                  % lv_dic['lv_name'])
+        result = utils.ExecRemoteCmd().exec_remote_cmd(**lvcreate)
+        if created_lv_path in result:
+            LOG.debug(_("Create logical volume %s successfully.")
+                      % created_lv_path)
+            return created_lv_path
+        return None
 
     def define_vpar(self, vpar_dic):
         """create  vpar
