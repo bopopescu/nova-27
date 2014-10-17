@@ -60,7 +60,7 @@ class HPUXDriver(driver.ComputeDriver):
 
         Return integer with the number of running instances
         """
-        instances_list = self.list_instances()
+        instances_list = self._vparops.list_instances()
         return len(instances_list)
 
     def scheduler_dispatch(self, context, vPar_info):

@@ -313,7 +313,7 @@ class VParOps(object):
                 'ip_address': ip_addr,
                 'command': '/opt/hpvm/bin/vparreset -p ' + npar_name + ' -v'
         }
-        exec_result = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_mac_addr)
+        exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_mac_addr)
         result = exec_result.strip().split('\n')
         for item in result:
             if 'sitelan' in item:
