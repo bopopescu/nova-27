@@ -26,7 +26,7 @@ class VParOps(object):
         # Will get the host name (napr_name) of given vpar reading from DB.
         pass
 
-    def _get_vpar_resource_info(self, npar_name, ip_addr):
+    def _get_vpar_resource_info(self, vpar_name, npar_ip_addr):
         """Get vPar resource info.
 
         :returns: A dict including CPU, memory and run state info.
@@ -35,8 +35,8 @@ class VParOps(object):
         cmd_for_vpar = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': ip_addr,
-            'command': '/opt/hpvm/bin/vparstatus -p ' + npar_name + ' -v'
+            'ip_address': npar_ip_addr,
+            'command': '/opt/hpvm/bin/vparstatus -p ' + vpar_name + ' -v'
         }
         exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_vpar)
         results = exec_result.strip().split('\n')
@@ -64,7 +64,6 @@ class VParOps(object):
         # to avoid frequent interaction with ignite server.
         #admin_context = context.get_admin_context()
         #npar_list = db.npar_get_all(admin_context)
-
         npar_list, vpar_list = hostops.HostOps()._get_client_list()
         # TODO(Sunny): Delete the hard code "npar_list"
         # Do the deletion after all functions are ready,
@@ -94,14 +93,13 @@ class VParOps(object):
         :returns: A dict including CPU, memory, disk info and
         run state of required vPar.
         """
-        # This will be replaced since nPar_list will get by reading from
-        # DB directly.
-        napr_list, vpar_list = hostops.HostOps()._get_client_list()
-        for vpar in vpar_list:
-            if vpar['ip_addr'] is instance['ip_addr']:
-                host_npar_name = self.get_host_name(vpar['ip_addr'])
-                vpar_info = self._get_vpar_resource_info(host_npar_name,
-                                                         vpar['ip_addr'])
+        # TODO This will be replaced since nPar_list will get by reading from
+        # DB directly. Cut such code for now.
+        #napr_list, vpar_list = hostops.HostOps()._get_client_list()
+        #for vpar in vpar_list:
+            #if vpar['name'] is instance['name']:
+        vpar_info = self._get_vpar_resource_info(instance['vpar_name'],
+                                                 instance['npar_ip_addr'])
         if not vpar_info:
             raise exception.VparNotFound(instance['name'])
         else:

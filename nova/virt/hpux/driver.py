@@ -51,9 +51,7 @@ class HPUXDriver(driver.ComputeDriver):
 
         :state:           the running state, one of the power_state codes
         :max_mem:         (int) the maximum memory in KBytes allowed
-        :mem:             (int) the memory in KBytes used by the domain
         :num_cpu:         (int) the number of virtual CPUs for the domain
-        :cpu_time:        (int) the CPU time used in nanoseconds
         """
         return self._vparops.get_info(instance)
 

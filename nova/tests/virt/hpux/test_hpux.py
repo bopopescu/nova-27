@@ -65,17 +65,15 @@ class HPUXDriverTestCase(test.NoDBTestCase):
     @mock.patch.object(vparops.VParOps, 'get_info')
     def test_get_info(self, mock_get_info):
         fake_info = {
-            'state': 'power_state.RUNNING',
+            'state': 'UP',
             'max_mem': 4096,
-            'mem': 2048,
             'num_cpu': 2,
-            'cpu_time': None
         }
         mock_get_info.return_value = fake_info
         conn = hpux_driver.HPUXDriver(None, vparops=vparops.VParOps())
         fake_instance = {
-            'name': 'fake1',
-            'ip_addr': '192.168.0.1'
+            'vpar_name': 'fake1',
+            'npar_ip_addr': '192.168.0.1'
         }
         instance_info = conn.get_info(fake_instance)
         self.assertEqual(fake_info, instance_info)
