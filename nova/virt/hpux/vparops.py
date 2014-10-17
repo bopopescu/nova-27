@@ -96,8 +96,8 @@ class VParOps(object):
         :returns: A dict including CPU, memory, disk info and
         run state of required vPar.
         """
-        # TODO This will be replaced since nPar_list will get by reading from
-        # DB directly. Cut such code for now.
+        # TODO(Lei Li): This will be replaced since nPar_list
+        # will get by reading from DB directly. Cut such code for now.
         #napr_list, vpar_list = hostops.HostOps()._get_client_list()
         #for vpar in vpar_list:
             #if vpar['name'] is instance['name']:
@@ -240,7 +240,7 @@ class VParOps(object):
              :ip_addr: The IP address of specified nPar
         :returns: created_lv_path: The path of created logical volume
         """
-        lvcreate = {
+        cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': lv_dic['ip_addr'],
@@ -251,7 +251,7 @@ class VParOps(object):
         created_lv_path = lv_dic['vg_path'] + '/r' + lv_dic['lv_name']
         LOG.debug(_("Begin to create logical volume %s.")
                   % lv_dic['lv_name'])
-        result = utils.ExecRemoteCmd().exec_remote_cmd(**lvcreate)
+        result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
         if created_lv_path in result:
             LOG.debug(_("Create logical volume %s successfully.")
                       % created_lv_path)
@@ -279,34 +279,27 @@ class VParOps(object):
                 **cmd_for_vparcreate)
 
     def init_vpar(self, vpar_info):
-        """Initialize the defined vpar so that could enter live console mode
-        :param: A dict of vpar info including vpar_name and ip_addr
-        :return: True if success as vpar run state turn into 'EFI'
-        """
-        cmd_for_vpar_init = {
-                'username': CONF.hpux.username,
-                'password': CONF.hpux.password,
-                'ip_address': vpar_info['ip_addr'],
-                'command': '/opt/hpvm/bin/vparreset/vparboot -p ' +
-                           vpar_info['vpar_name']
-        }
-        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_vpar_init)
-        # Sleep for a while to wait initialization completed.
-        time.sleep(10)
+        """Initialize the specified vPar so that could enter live console mode.
 
-        # Check RunState 'EFI' for whether it executed successfully
-        cmd_for_init_check = {
-                'username': CONF.hpux.username,
-                'password': CONF.hpux.password,
-                'ip_address': vpar_info['ip_addr'],
-                'command': '/opt/hpvm/bin/vparreset/vparstatus'
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :ip_addr: The IP address of specified nPar
+        :return: True if vPar boot successfully
+        """
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': vpar_info['ip_addr'],
+            'command': '/opt/hpvm/bin/vparboot -p ' +
+                       vpar_info['vpar_name']
         }
-        exec_result = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_init_check)
-        run_state = exec_result.strip().split('\n', 3)[2]
-        if run_state is 'EFI':
+        LOG.debug(_("Begin to initialize vPar %s.") % vpar_info['vpar_name'])
+        result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        if 'Successful start initiation' in result:
+            LOG.debug(_("Initialize vPar %s successfully.")
+                      % vpar_info['vpar_name'])
             return True
-        else:
-            return False
+        return False
 
     def get_mac_addr(self, ip_addr):
         """Get mac address of nPar site lan
