@@ -8,12 +8,11 @@ import os
 import pexpect
 import time
 
-from nova.openstack.common.gettextutils import _
 from nova import exception
+from nova.openstack.common.gettextutils import _
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
 from oslo.config import cfg
-#from nova import db
 
 CONF = cfg.CONF
 
@@ -67,6 +66,13 @@ class VParOps(object):
         #npar_list = db.npar_get_all(admin_context)
 
         npar_list, vpar_list = hostops.HostOps()._get_client_list()
+        # TODO(Sunny): Delete the hard code "npar_list"
+        # Do the deletion after all functions are ready,
+        # here 'npar_list' is just for testing.
+        npar_list = [{'ip_addr': u'192.168.169.100',
+                      'name': u'bl890npar1', 'hostname': u'bl890npar1',
+                      'cpus': 8, 'memory': 66994944 / 1024,
+                      'model': u'ia64 hp Integrity BL890c i4 nPar'}]
         for npar in npar_list:
             cmd_for_npar = {
                 'username': CONF.hpux.username,
@@ -75,12 +81,11 @@ class VParOps(object):
                 'command': '/opt/hpvm/bin/vparstatus'
             }
             exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_npar)
-            # Vpar status 'RunState' at location (row 3, column 3) in the
-            # returned string exec_result
-            retult = exec_result.strip().split('\n', 3)[2]
-            if retult.split()[2] is 'UP':
-                vpar_names.append(retult.split()[1])
-
+            results = exec_result.strip().split('\n')
+            for ret in results:
+                # ret likes '  2 vpar-test  UP  Active \r'
+                if 'UP' in ret:
+                    vpar_names.append(ret.split()[1])
         return vpar_names
 
     def get_info(self, instance):
@@ -343,7 +348,8 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'echo bf = /opt/ignite/boot/Rel_B.11.21/nbp.efi:\  >> ./etc/bootptab'
+            'command': 'echo bf = /opt/ignite/boot/Rel_B.11.21/nbp.efi:\  >>'
+                       + ' ./etc/bootptab'
         }
         utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
         cmd_for_vparclient = {
@@ -392,9 +398,9 @@ class VParOps(object):
                 'username': CONF.hpux.username,
                 'password': CONF.hpux.password,
                 'ip_address': vpar_info['host'],
-                'command': 'echo \"Target OS is B.11.31 IA (non-interactive'
-                           ' install)\" boot IINSTALL -i\'run_ui=(false)env_vars'
-                           '+=\\\"INST_ALLOW_WARNINGS=5\\\"\' >> '
+                'command': 'echo \"Target OS is B.11.31 IA (non-interactive '
+                           'install)\" boot IINSTALL -i\'run_ui=(false)'
+                           'env_vars+=\\\"INST_ALLOW_WARNINGS=5\\\"\' >> '
                            ' ./opt/ignite/boot/Rel_B.11.31/AUTO'
             }
             utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
@@ -404,7 +410,8 @@ class VParOps(object):
         child_pid = os.fork()
         if child_pid == 0:
             cmd_for_lanboot = 'lanboot select -dn ' + profile_name
-            ssh = pexpect.spawn('ssh %s@%s "%s"' % ('root', ip_addr, cmd_for_lanboot))
+            ssh = pexpect.spawn('ssh %s@%s "%s"' % ('root',
+                                                    ip_addr, cmd_for_lanboot))
             expect_ret = ssh.expect(['Password:',
                                      'continue connecting (yes/no)?'],
                                     timeout=CONF.hpux.ssh_timeout_seconds)
@@ -423,7 +430,8 @@ class VParOps(object):
             ret = 1
             while ret > 0:
                 cmd_for_lanboot = 'ps aux | grep lanboot'
-                execute_result = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_lanboot)
+                execute_result = utils.ExecRemoteCmd.exec_remote_cmd(
+                                                           **cmd_for_lanboot)
                 stat = execute_result.split()
                 ret = stat[1]
                 time.sleep(60)
