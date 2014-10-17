@@ -268,15 +268,20 @@ class VParOps(object):
                 'username': CONF.hpux.username,
                 'password': CONF.hpux.password,
                 'ip_address': vpar_dic['ip_addr'],
-                'command': 'vparcreate -p ' + vpar_dic['vpar_nm'] +
-                           ' -a mem::' + vpar_dic['mem_size'] + '-a cpu::' +
-                           vpar_dic['vcpu'] + ' -a disk:avio_stor::lv:' +
-                           vpar_dic['path'] + '-a network:avio_lan::vswitch:' +
+                'command': '/opt/hpvm/bin/vparcreate -p ' + vpar_dic['vpar_nm'] +
+                           ' -a mem::' + str(vpar_dic['mem_size']) + ' -a cpu::' +
+                           str(vpar_dic['vcpu']) + ' -a disk:avio_stor::lv:' +
+                           vpar_dic['path'] + ' -a network:avio_lan::vswitch:' +
                            'sitelan' + ' -a network:avio_lan::vswitch:' +
                             'localnet'
         }
-        return utils.ExecRemoteCmd().exec_remote_cmd(
+        utils.ExecRemoteCmd().exec_remote_cmd(
                 **cmd_for_vparcreate)
+        ret=self.get_info(vpar_dic['vpar_nm'])
+        if 'DOWN' in ret['run_state']:
+            return True
+        else:
+            return False
 
     def init_vpar(self, vpar_info):
         """Initialize the specified vPar so that could enter live console mode.
