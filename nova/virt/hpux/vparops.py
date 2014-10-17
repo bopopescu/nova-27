@@ -301,23 +301,30 @@ class VParOps(object):
             return True
         return False
 
-    def get_mac_addr(self, ip_addr):
-        """Get mac address of nPar site lan
-        :param: string of npar ip_addr
-        :returns: String of mac address
+    def get_mac_addr(self, vpar_info):
+        """Get "sitelan" MAC address of vPar from specified nPar.
+
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :ip_addr: The IP address of specified nPar
+        :return: mac_addr: The MAC address of vPar
         """
-        npar_name = self.get_instance_host_name(ip_addr)
-        cmd_for_mac_addr = {
-                'username': CONF.hpux.username,
-                'password': CONF.hpux.password,
-                'ip_address': ip_addr,
-                'command': '/opt/hpvm/bin/vparreset -p ' + npar_name + ' -v'
+        mac_addr = None
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': vpar_info['ip_addr'],
+            'command': '/opt/hpvm/bin/vparstatus -p ' +
+                       vpar_info['vpar_name'] + ' -v'
         }
-        exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_mac_addr)
-        result = exec_result.strip().split('\n')
-        for item in result:
-            if 'sitelan' in item:
-                mac_addr = item.strip().split(':')[2].split(',')[3]
+        exec_result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        results = exec_result.strip().split('\n')
+        for item in results:
+            if CONF.hpux.management_network in item:
+                io_details = item.split()
+                for io in io_details:
+                    if CONF.hpux.management_network in io:
+                        mac_addr = io.split(':')[2].split(',')[2]
         return mac_addr
 
     def register_vpar_into_ignite(self, vpar_info):

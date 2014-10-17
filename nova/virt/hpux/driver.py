@@ -8,6 +8,34 @@ from nova import db
 from nova.virt import driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
+from oslo.config import cfg
+
+hpux_opts = [
+    cfg.StrOpt('username',
+               default='root',
+               help='Username for ssh command'),
+    cfg.StrOpt('password',
+               default='root',
+               help='Password for ssh command'),
+    cfg.StrOpt('ignite_ip',
+               default='192.168.172.52',
+               help='IP for ignite server'),
+    cfg.IntOpt('ssh_timeout_seconds',
+               default=20,
+               help='Number of seconds to wait for ssh command'),
+    cfg.StrOpt('vg_name',
+               default='/dev/vg00',
+               help='Volume group of nPar for creating logical volume'),
+    cfg.StrOpt('management_network',
+               default='sitelan',
+               help='Management network for vPar'),
+    cfg.StrOpt('production_network',
+               default='localnet',
+               help='Production network for vPar'),
+    ]
+
+CONF = cfg.CONF
+CONF.register_opts(hpux_opts, 'hpux')
 
 
 class HPUXDriver(driver.ComputeDriver):

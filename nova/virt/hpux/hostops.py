@@ -13,26 +13,7 @@ from nova.virt.hpux import utils
 from oslo.config import cfg
 from xml.dom import minidom
 
-hpux_opts = [
-    cfg.StrOpt('username',
-               default='root',
-               help='Username for ssh command'),
-    cfg.StrOpt('password',
-               default='root',
-               help='Password for ssh command'),
-    cfg.StrOpt('ignite_ip',
-               default='192.168.172.52',
-               help='IP for ignite server'),
-    cfg.IntOpt('ssh_timeout_seconds',
-               default=20,
-               help='Number of seconds to wait for ssh command'),
-    cfg.StrOpt('vg_name',
-               default='/dev/vg00',
-               help='Volume group of nPar for creating logical volume'),
-    ]
-
 CONF = cfg.CONF
-CONF.register_opts(hpux_opts, 'hpux')
 
 LOG = logging.getLogger(__name__)
 
