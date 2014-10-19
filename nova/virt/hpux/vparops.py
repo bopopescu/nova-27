@@ -333,95 +333,62 @@ class VParOps(object):
         return mac_addr
 
     def register_vpar_into_ignite(self, vpar_info):
-        #create and config ./etc/bootptab
-        cmd_for_vparclient = {
+        """Register vPar into ignite server.
+
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :mac: The mac address of vPar
+             :ip_addr: The IP address of vPar
+             :gateway: The gateway of vPar
+             :mask: The mask of vPar
+        :return: True if no error in the process of registration
+        """
+        # Add vPar network info into the end of /etc/bootptab on ignite server
+        cmd_for_network = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'touch ./etc/bootptab'
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': 'cat >> /etc/bootptab <<EOF\r\n'
+                       + vpar_info['vpar_name'] + ':\\'
+                       + '\r\n\ttc=ignite-defaults:\\'
+                       + '\r\n\tha=' + vpar_info['mac'] + ':\\'
+                       + '\r\n\tbf=/opt/ignite/boot/Rel_B.11.31/nbp.efi:\\'
+                       + '\r\n\tgw=' + vpar_info['gateway'] + ':\\'
+                       + '\r\n\tip=' + vpar_info['ip_addr'] + ':\\'
+                       + '\r\n\tsm=' + vpar_info['mask']
+                       + '\r\nEOF'
         }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_network)
+
+        # Create config file for client(vPar)
+        cmd_for_create_config = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo ' + vpar_info['vpar_name'] + ' >> ./etc/bootptab'
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': 'mkdir /var/opt/ignite/clients/' + vpar_info['mac'] +
+                       '&& touch /var/opt/ignite/clients/' + vpar_info['mac'] +
+                       '/config'
         }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_create_config)
+
+        # Add config info into the end of /var/opt/ignite/clients/<MAC>/config
+        cmd_for_config = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo tc = ignite-defaults:\ >> ./etc/bootptab'
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': 'cat >> /var/opt/ignite/clients/'
+                       + vpar_info['mac'] + '/config <<EOF'
+                       + '\r\ncfg "HP-UX B.11.31.1403 golden_image"=TRUE'
+                       + '\r\n_hp_cfg_detail_level="v"'
+                       + '\r\nfinal system_name="'
+                       + vpar_info['vpar_name'] + '"'
+                       + '\r\n_hp_keyboard="USB_PS2_DIN_US_English"'
+                       + '\r\nroot_password="1uGsgzGKG95gU"'
+                       + '\r\n_hp_root_disk="0/0/0/0.0x0.0x0"'
+                       + '\r\n_my_second_disk_path=""'
+                       + '\r\nEOF'
         }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo ha = ' + vpar_info['mac'] + ' >> ./etc/bootptab'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo bf = /opt/ignite/boot/Rel_B.11.21/nbp.efi:\  >>'
-                       + ' ./etc/bootptab'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo gw=' + vpar_info['gateway'] + ' >> ./etc/bootptab'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo ip=' + vpar_info['host'] + ' >> ./etc/bootptab'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'echo sm=' + vpar_info['subnet_mask'] +
-                       ' >> ./etc/bootptab'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        #/var/opt/ignite/auto/set_client.sh
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': './var/opt/ignite/auto/set_client.sh'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        #config Aotu file
-        cmd_for_vparclient = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
-            'command': 'grep -i -c \"Target OS is B.11.31 IA (non-interactive'
-                       ' install)\" boot IINSTALL -i\'run_ui=(false)env_vars'
-                       '+=\\\"INST_ALLOW_WARNINGS=5\\\"\''
-                       ' ./opt/ignite/boot/Rel_B.11.31/AUTO'
-        }
-        ret = utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
-        if ret == 0:
-            cmd_for_vparclient = {
-                'username': CONF.hpux.username,
-                'password': CONF.hpux.password,
-                'ip_address': vpar_info['host'],
-                'command': 'echo \"Target OS is B.11.31 IA (non-interactive '
-                           'install)\" boot IINSTALL -i\'run_ui=(false)'
-                           'env_vars+=\\\"INST_ALLOW_WARNINGS=5\\\"\' >> '
-                           ' ./opt/ignite/boot/Rel_B.11.31/AUTO'
-            }
-            utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vparclient)
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
         return True
 
     def ft_boot_vpar(self, ip_addr, profile_name):
