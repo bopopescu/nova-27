@@ -108,7 +108,7 @@ class VParOps(object):
         else:
             return vpar_info
 
-    def destroy(self, instance ):
+    def destroy(self, instance):
         #power off the vpar before vparremove
         exec_result = None
         try:
@@ -277,7 +277,7 @@ class VParOps(object):
         }
         utils.ExecRemoteCmd().exec_remote_cmd(
                 **cmd_for_vparcreate)
-        ret=self.get_info(vpar_dic['vpar_nm'])
+        ret = self.get_info(vpar_dic['vpar_nm'])
         if 'DOWN' in ret['run_state']:
             return True
         else:

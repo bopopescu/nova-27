@@ -1937,6 +1937,10 @@ def npar_get_all(context):
     return IMPL.npar_get_all(context)
 
 
+def npar_resource_get(context, npar_id):
+    return IMPL.npar_resource_get(context, npar_id)
+
+
 def npar_resource_update(context, npar_id, values):
     """Update the record in DB."""
     return IMPL.npar_resource_update(context, npar_id, values)

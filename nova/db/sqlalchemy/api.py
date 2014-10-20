@@ -6097,6 +6097,11 @@ def _npar_id_get(context, npar_id, session=None):
 
 
 @require_admin_context
+def npar_resource_get(context, npar_id):
+    return _npar_id_get(context, npar_id)
+
+
+@require_admin_context
 @_retry_on_deadlock
 def npar_resource_update(context, npar_id, values):
     npar = _npar_id_get(context, npar_id, session=None)
