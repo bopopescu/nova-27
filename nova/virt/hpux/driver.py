@@ -103,14 +103,14 @@ class HPUXDriver(driver.ComputeDriver):
         return nPar
 
     def instance_exists(self, instance_name):
-        """Check target instance exists or not.
+        """Check if target instance exists.
 
         :param instance_name:
         :return:
         :True:
         :False:
         """
-        instance_list = self.list_instances()
+        instance_list = self._vparops.list_instances()
         for inst_name in instance_list:
             if instance_name == inst_name:
                 return True
