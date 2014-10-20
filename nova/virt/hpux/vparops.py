@@ -108,7 +108,7 @@ class VParOps(object):
         else:
             return vpar_info
 
-    def destroy(self, context, instance, network_info):
+    def destroy(self, instance ):
         #power off the vpar before vparremove
         exec_result = None
         try:
