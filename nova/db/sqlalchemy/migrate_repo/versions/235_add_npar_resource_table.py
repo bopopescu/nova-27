@@ -30,7 +30,7 @@ def upgrade(migrate_engine):
     meta.bind = migrate_engine
 
     nPar_resource = Table('nPar_resource', meta,
-        Column('id', Integer, nullable=False),
+        Column('id', Integer, primary_key=True, nullable=False),
         Column('created_at', DateTime),
         Column('updated_at', DateTime),
         Column('deleted_at', DateTime),
@@ -46,7 +46,7 @@ def upgrade(migrate_engine):
         mysql_charset='utf8'
     )
     shadow_nPar_resource = Table('shadow_nPar_resource', meta,
-        Column('id', Integer, nullable=False),
+        Column('id', Integer, primary_key=True, nullable=False),
         Column('created_at', DateTime),
         Column('updated_at', DateTime),
         Column('deleted_at', DateTime),
