@@ -7183,7 +7183,6 @@ class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
 
     def _get_base_values(self):
         return {
-            'id': 1,
             'ip_addr': '192.168.0.3',
             'vcpus': 2,
             'vcpus_used': 0,
@@ -7200,8 +7199,8 @@ class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
 
     def test_npar_get_all(self):
         values = [
-            {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 1},
-            {'id': 2, 'ip_addr': '192.168.0.2', 'vcpus': 2},
+            {'ip_addr': '192.168.0.1', 'vcpus': 1},
+            {'ip_addr': '192.168.0.2', 'vcpus': 2},
         ]
         nPar_resource = [self._create_npar_resource(vals) for vals in values]
         real = db.npar_get_all(self.ctxt)
@@ -7224,10 +7223,10 @@ class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
         self.assertEqual(value['id'], result['id'])
 
     def test_npar_resource_update(self):
-        value = {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 3}
+        value = {'ip_addr': '192.168.0.1', 'vcpus': 3}
         values = [
-            {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 1},
-            {'id': 2, 'ip_addr': '192.168.0.2', 'vcpus': 2},
+            {'ip_addr': '192.168.0.1', 'vcpus': 1},
+            {'ip_addr': '192.168.0.2', 'vcpus': 2},
         ]
 
         result = [self._create_npar_resource(vals) for vals in values]

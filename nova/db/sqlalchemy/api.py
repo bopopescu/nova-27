@@ -6112,8 +6112,15 @@ def npar_get_by_ip(context, npar_ip_addr):
 @require_admin_context
 @_retry_on_deadlock
 def npar_resource_update(context, npar_id, values):
-    npar = _npar_id_get(context, npar_id, session=None)
-    npar.update(values)
+    session = get_session()
+    with session.begin():
+        npar = _npar_id_get(context, npar_id, session=None)
+        values['updated_at'] = timeutils.utcnow()
+        datetime_keys = ('created_at', 'deleted_at', 'updated_at')
+        convert_objects_related_datetimes(values, *datetime_keys)
+        npar.update(values)
+        npar.save()
+
     return npar
 
 

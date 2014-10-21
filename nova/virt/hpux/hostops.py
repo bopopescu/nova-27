@@ -215,8 +215,14 @@ class HostOps(object):
             # Try to create/update npar info into table "nPar_resource"
             npar_resource = db.npar_get_by_ip(admin_context, npar['ip_addr'])
             if npar_resource:
-                db.npar_resource_update(admin_context,
-                                        npar['ip_addr'], update_info)
+                if not (npar_resource['vcpus'] == update_info['vcpus'] and
+                    npar_resource['vcpus_used'] == update_info['vcpus_used'] and
+                    npar_resource['memory'] == update_info['memory'] and
+                    npar_resource['memory_used'] == update_info['memory_used'] and
+                    npar_resource['disk'] == update_info['disk'] and
+                    npar_resource['disk_used'] == update_info['disk_used']):
+                    db.npar_resource_update(admin_context,
+                                            npar_resource['id'], update_info)
             else:
                 update_info['ip_addr'] = npar['ip_addr']
                 db.npar_resource_create(admin_context, update_info)

@@ -42,7 +42,7 @@ def upgrade(migrate_engine):
         Column('memory_used', Integer, nullable=True),
         Column('disk', Integer, nullable=True),
         Column('disk_used', Integer, nullable=True),
-        Column('deleted', String(length=36)),
+        Column('deleted', Integer, default=0, nullable=False),
         mysql_engine='InnoDB',
         mysql_charset='utf8'
     )
