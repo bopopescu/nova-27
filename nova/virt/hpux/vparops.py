@@ -350,15 +350,13 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': 'cat >> /etc/bootptab <<EOF\r\n'
-                       + vpar_info['vpar_name'] + ':\\'
-                       + '\r\n\ttc=ignite-defaults:\\'
-                       + '\r\n\tha=' + vpar_info['mac'] + ':\\'
-                       + '\r\n\tbf=/opt/ignite/boot/Rel_B.11.31/nbp.efi:\\'
-                       + '\r\n\tgw=' + vpar_info['gateway'] + ':\\'
-                       + '\r\n\tip=' + vpar_info['ip_addr'] + ':\\'
-                       + '\r\n\tsm=' + vpar_info['mask']
-                       + '\r\nEOF'
+            'command': ' echo \''+ vpar_info['vpar_name'] + ':\\\'' + ' >> /etc/bootptab'
+                       + ' && echo \'\ttc=ignite-defaults:\\\'' + ' >> /etc/bootptab'
+                       + ' && echo \'\tha=' + vpar_info['mac'] + ':\\\'' + ' >> /etc/bootptab'
+                       + ' && echo \'\tbf=/opt/ignite/boot/Rel_B.11.31/nbp.efi:\\\'' + ' >> /etc/bootptab'
+                       + ' && echo \'\tgw=' + vpar_info['gateway'] + ':\\\'' + ' >> /etc/bootptab'
+                       + ' && echo \'\tip=' + vpar_info['ip_addr'] + ':\\\'' + ' >> /etc/bootptab'
+                       + ' && echo \'\tsm=' + vpar_info['mask']+ '\'' + ' >> /etc/bootptab'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_network)
 
@@ -378,17 +376,21 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': 'cat >> /var/opt/ignite/clients/'
-                       + vpar_info['mac'] + '/config <<EOF'
-                       + '\r\ncfg "HP-UX B.11.31.1403 golden_image"=TRUE'
-                       + '\r\n_hp_cfg_detail_level="v"'
-                       + '\r\nfinal system_name="'
-                       + vpar_info['vpar_name'] + '"'
-                       + '\r\n_hp_keyboard="USB_PS2_DIN_US_English"'
-                       + '\r\nroot_password="1uGsgzGKG95gU"'
-                       + '\r\n_hp_root_disk="0/0/0/0.0x0.0x0"'
-                       + '\r\n_my_second_disk_path=""'
-                       + '\r\nEOF'
+            'command': 'mkdir -p /etc/' + vpar_info['mac']
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
+        cmd_for_config = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': ' echo \'cfg "HP-UX B.11.31.1403 golden_image"=TRUE\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+                    + ' && echo \'_hp_cfg_detail_level="v"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+                    + ' && echo \'final system_name="'
+                    + vpar_info['vpar_name'] + '"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+                    + ' && echo \'_hp_keyboard="USB_PS2_DIN_US_English"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+                    + ' && echo \'root_password="1uGsgzGKG95gU"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+                    + ' && echo \'_hp_root_disk="0/0/0/0.0x0.0x0"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+                    + ' && echo \'_my_second_disk_path=""\'' + '>> /etc/' + vpar_info['mac'] + '/config'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
         return True
