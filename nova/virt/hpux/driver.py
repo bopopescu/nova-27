@@ -18,7 +18,7 @@ hpux_opts = [
                default='root',
                help='Password for ssh command'),
     cfg.StrOpt('ignite_ip',
-               default='192.168.172.52',
+               default='192.168.172.51',
                help='IP for ignite server'),
     cfg.IntOpt('ssh_timeout_seconds',
                default=20,

@@ -259,29 +259,31 @@ class VParOps(object):
         return None
 
     def define_vpar(self, vpar_dic):
-        """create  vpar
-        :param: dict,include vparname, memory size, path, ipaddress, CPU
-                numbers
-        :returns: A list of up(running) vPar name
+        """Define vPar resources on specified nPar.
+
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :host: The IP address of specified nPar
+             :mem: The memory of vPar
+             :cpu: The cpu of vPar
+             :lv_path: The path of logical volume
+        :returns:
         """
-        cmd_for_vparcreate = {
-                'username': CONF.hpux.username,
-                'password': CONF.hpux.password,
-                'ip_address': vpar_dic['ip_addr'],
-                'command': '/opt/hpvm/bin/vparcreate -p ' + vpar_dic['vpar_nm'] +
-                           ' -a mem::' + str(vpar_dic['mem_size']) + ' -a cpu::' +
-                           str(vpar_dic['vcpu']) + ' -a disk:avio_stor::lv:' +
-                           vpar_dic['path'] + ' -a network:avio_lan::vswitch:' +
-                           'sitelan' + ' -a network:avio_lan::vswitch:' +
-                            'localnet'
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': vpar_dic['host'],
+            'command': '/opt/hpvm/bin/vparcreate -p ' +
+                       vpar_dic['vpar_name'] +
+                       ' -a mem::' + str(vpar_dic['mem']) +
+                       ' -a cpu::' + str(vpar_dic['cpu']) +
+                       ' -a disk:avio_stor::lv:' + vpar_dic['lv_path'] +
+                       ' -a network:avio_lan::vswitch:' +
+                       CONF.hpux.management_network +
+                       ' -a network:avio_lan::vswitch:' +
+                       CONF.hpux.production_network
         }
-        utils.ExecRemoteCmd().exec_remote_cmd(
-                **cmd_for_vparcreate)
-        ret = self.get_info(vpar_dic['vpar_nm'])
-        if 'DOWN' in ret['run_state']:
-            return True
-        else:
-            return False
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
 
     def init_vpar(self, vpar_info):
         """Initialize the specified vPar so that could enter live console mode.
