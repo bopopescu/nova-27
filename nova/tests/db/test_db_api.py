@@ -7216,6 +7216,13 @@ class NParResourceTestCase(test.TestCase, ModelsObjectComparatorMixin):
 
         self.assertEqual(value['id'], result['id'])
 
+    def test_npar_get_by_ip(self):
+        value = {'id': 9, 'ip_addr': '192.168.0.1', 'vcpus': 1}
+        self._create_npar_resource(value)
+        result = db.npar_get_by_ip(self.ctxt, value['ip_addr'])
+
+        self.assertEqual(value['id'], result['id'])
+
     def test_npar_resource_update(self):
         value = {'id': 1, 'ip_addr': '192.168.0.1', 'vcpus': 3}
         values = [

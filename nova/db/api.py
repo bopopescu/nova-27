@@ -1951,5 +1951,6 @@ def npar_resource_delete(context, npar_id):
     return IMPL.npar_resource_delete(context, npar_id)
 
 
-def npar_get_by_ip(context, ip_addr):
-    pass
+def npar_get_by_ip(context, npar_ip_addr):
+    """Get nPar by ip_addr"""
+    return IMPL.npar_get_by_ip(context, npar_ip_addr)

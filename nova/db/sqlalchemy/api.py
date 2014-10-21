@@ -6102,6 +6102,14 @@ def npar_resource_get(context, npar_id):
 
 
 @require_admin_context
+def npar_get_by_ip(context, npar_ip_addr):
+    result = model_query(context, models.NParResource, session=None).\
+            filter_by(ip_addr=npar_ip_addr).\
+            first()
+    return result
+
+
+@require_admin_context
 @_retry_on_deadlock
 def npar_resource_update(context, npar_id, values):
     npar = _npar_id_get(context, npar_id, session=None)
