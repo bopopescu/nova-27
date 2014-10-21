@@ -6,6 +6,8 @@ Management class for basic vPar operations.
 
 import os
 import pexpect
+import pxssh
+import re
 import time
 
 from nova import exception
@@ -237,13 +239,13 @@ class VParOps(object):
              :lv_size: The size of logical volume
              :lv_name: The name of logical volume
              :vg_path: The path of volume group
-             :ip_addr: The IP address of specified nPar
+             :host: The IP address of specified nPar
         :returns: created_lv_path: The path of created logical volume
         """
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': lv_dic['ip_addr'],
+            'ip_address': lv_dic['host'],
             'command': 'lvcreate -L ' + lv_dic['lv_size'] +
                        ' -n ' + lv_dic['lv_name'] +
                        ' ' + lv_dic['vg_path']
@@ -290,13 +292,13 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :ip_addr: The IP address of specified nPar
+             :host: The IP address of specified nPar
         :return: True if vPar boot successfully
         """
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['ip_addr'],
+            'ip_address': vpar_info['host'],
             'command': '/opt/hpvm/bin/vparboot -p ' +
                        vpar_info['vpar_name']
         }
@@ -313,14 +315,14 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :ip_addr: The IP address of specified nPar
+             :host: The IP address of specified nPar
         :return: mac_addr: The MAC address of vPar
         """
         mac_addr = None
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['ip_addr'],
+            'ip_address': vpar_info['host'],
             'command': '/opt/hpvm/bin/vparstatus -p ' +
                        vpar_info['vpar_name'] + ' -v'
         }
@@ -393,6 +395,75 @@ class VParOps(object):
                     + ' && echo \'_my_second_disk_path=""\'' + '>> /etc/' + vpar_info['mac'] + '/config'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
+        return True
+
+    def lanboot_vpar_by_efi(self, vpar_info):
+        """Lanboot vPar by enter EFI Shell on specified nPar.
+
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :host: The IP address of specified nPar
+             :ip_addr: The IP address of vPar
+             :gateway: The gateway of vPar
+             :mask: The mask of vPar
+        :return: True if no error in the process of lanboot
+        """
+        cmd_vparconsole = '/opt/hpvm/bin/vparconsole -P '\
+                          + vpar_info['vpar_name']
+        cmd_dbprofile_network = 'dbprofile -dn profile-test' +\
+                                ' -sip ' + CONF.hpux.ignite_ip +\
+                                ' -cip ' + vpar_info['ip_addr'] +\
+                                ' -gip ' + vpar_info['gateway'] +\
+                                ' -m ' + vpar_info['mask']
+        cmd_dbprofile_kernel = 'dbprofile -dn profile-test' +\
+                               ' -b "/opt/ignite/boot/Rel_B.11.31/nbp.efi"'
+        cmd_lanboot = 'lanboot select -index 01 -dn profile-test'
+        try:
+            LOG.debug(_("Begin to lanboot vPar %s by enter EFI Shell.")
+                      % vpar_info['vpar_name'])
+            # Get ssh connection
+            ssh = pxssh.pxssh()
+            ssh.login(vpar_info['host'], CONF.hpux.username,
+                      CONF.hpux.password, original_prompt='[$#>]',
+                      login_timeout=CONF.hpux.ssh_timeout_seconds)
+
+            # Send command "vparconsole -P <vpar_name>"
+            ssh.sendline(cmd_vparconsole)
+            ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+            ssh.sendline('CO')
+            ssh.sendline('\r\n')
+            ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+            # Replace the color code of output
+            efi_prompt = re.sub('\x1b\[[0-9;]*[m|H|J]', '', ssh.before)
+            efi_prompt = re.sub('\[0m', '', efi_prompt)
+
+            # Send "Ctrl-Ecf" to EFI Shell if have no write access
+            if 'Read only' in efi_prompt[-70:]:
+                # [Read only - use Ctrl-Ecf for console write access.]
+                ssh.send('\x05\x63\x66')
+                ssh.sendline('\r\n')
+                ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+
+            # Send command related to "dbprofile"
+            ssh.sendline(cmd_dbprofile_network)
+            ssh.sendline('\r\n')
+            ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+            ssh.sendline(cmd_dbprofile_kernel)
+            ssh.sendline('\r\n')
+            ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+            # Output the log before executing "lanboot"
+            console_log = re.sub('\x1b\[[0-9;]*[m|H|J]', '', ssh.before)
+            LOG.info(_("\n%s") % console_log)
+
+            # Send command related to "lanboot"
+            ssh.send(cmd_lanboot)
+            ssh.send('\r\n')
+            ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
+        except pxssh.ExceptionPxssh:
+            raise exception.Invalid(_("pxssh failed on login."))
+        finally:
+            ssh.logout()
+
         return True
 
     def ft_boot_vpar(self, ip_addr, profile_name):
