@@ -21,6 +21,7 @@ from sqlalchemy import Table
 
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
+from nova.openstack.common import timeutils
 
 LOG = logging.getLogger(__name__)
 
@@ -31,8 +32,8 @@ def upgrade(migrate_engine):
 
     nPar_resource = Table('nPar_resource', meta,
         Column('id', Integer, primary_key=True, nullable=False),
-        Column('created_at', DateTime),
-        Column('updated_at', DateTime),
+        Column('created_at', DateTime, default=timeutils.utcnow),
+        Column('updated_at', DateTime, onupdate=timeutils.utcnow),
         Column('deleted_at', DateTime),
         Column('ip_addr', String(length=255), nullable=False),
         Column('vcpus', Integer, nullable=True),
