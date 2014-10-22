@@ -113,19 +113,12 @@ class HPUXDriver(driver.ComputeDriver):
         :True:
         :False:
         """
-        instance_list = self._vparops.list_instances()
+        instance_list = self.list_instances()
         for inst_name in instance_list:
             if instance_name == inst_name:
                 return True
             continue
         return False
-
-    def get_instance_host_name(self, ip_addr):
-        """Get the host (nPar) name of a given instance.
-
-        Return string of nPar name
-        """
-        return self._vparops.get_instance_host_name(ip_addr)
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
@@ -141,13 +134,6 @@ class HPUXDriver(driver.ComputeDriver):
         if self.instance_exists(instance['display_name']):
             self._vparops.destroy(context, instance, network_info)
 
-    def init_vpar(self, vpar_info):
-        """Initialize the defined vPar.
-        :param: A dict of vPar info including vPar name and ip address
-        :return: True or False for whether it executes successfully
-        """
-        return self._vparops.init_vpar(vpar_info)
-
     def get_mac_addr(self, ip_addr):
         """Get mac address of nPar site lan
         :param: ip_addr:
@@ -155,8 +141,8 @@ class HPUXDriver(driver.ComputeDriver):
         """
         return self._vparops.get_mac_addr(ip_addr)
 
-    def spawn(self, context, instance, volume_dic, prof_define_info,
-              vhba_info, prof_update_info, network_info=None):
+    def spawn(self, context, instance, image_meta, injected_files,
+              admin_password, network_info=None, block_device_info=None):
         """Spawn new vapr
 
         :param context:
@@ -168,5 +154,5 @@ class HPUXDriver(driver.ComputeDriver):
         :param block_device_info:
         :return:
         """
-        self._vparops.spawn(context, instance, volume_dic, prof_define_info,
-              vhba_info, prof_update_info, network_info=None)
+        self._vparops.spawn(context, instance, image_meta, injected_files,
+              admin_password, network_info=None, block_device_info=None)

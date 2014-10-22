@@ -4,11 +4,8 @@ __author__ = 'psteam'
 Management class for basic vPar operations.
 """
 
-import os
-import pexpect
 import pxssh
 import re
-import time
 
 from nova import exception
 from nova.openstack.common.gettextutils import _
@@ -25,10 +22,6 @@ LOG = logging.getLogger(__name__)
 class VParOps(object):
 
     def __init__(self):
-        pass
-
-    def get_instance_host_name(self, ip_addr):
-        # Will get the host name (napr_name) of given vpar reading from DB.
         pass
 
     def _get_vpar_resource_info(self, vpar_name, npar_ip_addr):
@@ -110,7 +103,7 @@ class VParOps(object):
         else:
             return vpar_info
 
-    def destroy(self, instance):
+    def destroy(self, context, instance, network_info):
         #power off the vpar before vparremove
         exec_result = None
         try:
@@ -140,97 +133,9 @@ class VParOps(object):
         finally:
             return exec_result
 
-    def define_dbprofile(self, prof_define_info):
-        """Define dbprofile in EFI shell to prepare later vPar installing.
-        :param: A dict contains all of the needed info for dbprofile define,
-                - vPar name (vpar_name)
-                - nPar IP address (ip_address)
-                - Ignite-UX server IP address (sip)
-                - Ignite client IP address (cip)
-                - Ignite client  server Gateway IP address (gip)
-                - Ignite client  server Network mask (mask)
-        :return: Name of defined profile if success.
-        """
-        prof_name = 'profile_hpux'
-        #Hard code the Ignite-UX server IP address for now
-        prof_define_info['sip'] = '192.168.172.51'
-        try:
-            cmd_for_dbprofile_define = {
-                'username': CONF.hpux.username,
-                'vpar_name': prof_define_info['vpar_name'],
-                'ip_address': prof_define_info['ip_address'],
-                'remote_command': '/opt/hpvm/bin/vparconsole -p ' +
-                                  prof_define_info['vpar_name'],
-                'efi_command': 'dbprofile -dn ' + prof_name + ' -sip ' +
-                                  prof_define_info['sip'] + ' -cip ' +
-                                  prof_define_info['cip'] + ' -gip ' +
-                                  prof_define_info['gip'] + ' -m ' +
-                                  prof_define_info['mask']
-            }
-            utils.ExecRemoteCmd.exec_efi_cmd(**cmd_for_dbprofile_define)
-        except utils.ExceptionPexpect as e:
-            raise exception.Invalid(("Failed to define dbprofile"))
-        finally:
-            if not e:
-                return prof_name
-
-    def update_dbprofile(self, prof_update_info):
-        """Update defined dbprofile
-        :param: A dict contains,
-                - vPar name (vpar_name)
-                - nPar IP address (ip_address)
-                - Name of defined dbprofile (prof_name)
-                - Boot file name (boot_fname)
-        :return True in success
-        """
-        #Hard code the Ignite-UX server IP address for now
-        prof_update_info['sip'] = '192.168.172.51'
-        try:
-            cmd_for_dbprofile_update = {
-                'username': CONF.hpux.username,
-                'vpar_name': prof_update_info['vpar_name'],
-                'ip_address': prof_update_info['ip_address'],
-                'remote_command': '/opt/hpvm/bin/vparconsole -p ' +
-                                  prof_update_info['vpar_name'],
-                'efi_command': 'dbprofile -dn ' +
-                               prof_update_info['prof_name'] + ' -b ' +
-                               prof_update_info['boot_fname']
-            }
-            utils.ExecRemoteCmd.exec_efi_cmd(**cmd_for_dbprofile_update)
-        except utils.ExecRemoteCmd as e:
-            raise exception.Invalid(("Failed to update dbprofile"))
-        finally:
-            if not e:
-                return True
-
-    def spawn(self, context, instance, volume_dic, prof_define_info,
-              vhba_info, prof_update_info, network_info=None):
-        """Spawn vPar including before register stage and after register stage
-           - Before register stage:
-             - create lv
-             - define vPar
-             - init vPar
-             - get mac address
-             - register (configuration)
-           - After register stage:
-             - connect vPar console
-             - enter EFI shell
-             - define dbprofile
-             - select lanboot
-             - set vHBA
-             - update dbprofile
-        """
-        # Before register stage action, rough coding for now.
-        self.create_lv(volume_dic)
-        self.define_vpar(instance)
-        self.init_vpar(instance)
-        self.get_mac_addr(network_info['ip_addr'])
-        self.register_vpar_into_ignite(instance)
-        # After register stage action.
-        prof_name = self.define_dbprofile(prof_define_info)
-        self.ft_boot_vpar(network_info['ip_addr'], prof_name)
-        self.init_vhba(vhba_info)
-        self.update_dbprofile(prof_update_info)
+    def spawn(self, context, instance, image_meta, injected_files,
+              admin_password, network_info=None, block_device_info=None):
+        pass
 
     def create_lv(self, lv_dic):
         """Create logical volume for vPar on specified nPar.
@@ -352,13 +257,19 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': ' echo \''+ vpar_info['vpar_name'] + ':\\\'' + ' >> /etc/bootptab'
-                       + ' && echo \'\ttc=ignite-defaults:\\\'' + ' >> /etc/bootptab'
-                       + ' && echo \'\tha=' + vpar_info['mac'] + ':\\\'' + ' >> /etc/bootptab'
-                       + ' && echo \'\tbf=/opt/ignite/boot/Rel_B.11.31/nbp.efi:\\\'' + ' >> /etc/bootptab'
-                       + ' && echo \'\tgw=' + vpar_info['gateway'] + ':\\\'' + ' >> /etc/bootptab'
-                       + ' && echo \'\tip=' + vpar_info['ip_addr'] + ':\\\'' + ' >> /etc/bootptab'
-                       + ' && echo \'\tsm=' + vpar_info['mask']+ '\'' + ' >> /etc/bootptab'
+            'command': ' echo \'' + vpar_info['vpar_name'] + ':\\\''
+                + ' >> /etc/bootptab'
+                + ' && echo \'\ttc=ignite-defaults:\\\'' + ' >> /etc/bootptab'
+                + ' && echo \'\tha=' + vpar_info['mac'] + ':\\\''
+                + ' >> /etc/bootptab'
+                + ' && echo \'\tbf=/opt/ignite/boot/Rel_B.11.31/nbp.efi:\\\''
+                + ' >> /etc/bootptab'
+                + ' && echo \'\tgw=' + vpar_info['gateway'] + ':\\\''
+                + ' >> /etc/bootptab'
+                + ' && echo \'\tip=' + vpar_info['ip_addr'] + ':\\\''
+                + ' >> /etc/bootptab'
+                + ' && echo \'\tsm=' + vpar_info['mask'] + '\''
+                + ' >> /etc/bootptab'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_network)
 
@@ -378,21 +289,21 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': 'mkdir -p /etc/' + vpar_info['mac']
-        }
-        utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
-        cmd_for_config = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': CONF.hpux.ignite_ip,
-            'command': ' echo \'cfg "HP-UX B.11.31.1403 golden_image"=TRUE\'' + '>> /etc/' + vpar_info['mac'] + '/config'
-                    + ' && echo \'_hp_cfg_detail_level="v"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
-                    + ' && echo \'final system_name="'
-                    + vpar_info['vpar_name'] + '"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
-                    + ' && echo \'_hp_keyboard="USB_PS2_DIN_US_English"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
-                    + ' && echo \'root_password="1uGsgzGKG95gU"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
-                    + ' && echo \'_hp_root_disk="0/0/0/0.0x0.0x0"\'' + '>> /etc/' + vpar_info['mac'] + '/config'
-                    + ' && echo \'_my_second_disk_path=""\'' + '>> /etc/' + vpar_info['mac'] + '/config'
+            'command': ' echo \'cfg "HP-UX B.11.31.1403 golden_image"=TRUE\''
+                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + ' && echo \'_hp_cfg_detail_level="v"\''
+                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + ' && echo \'final system_name="' + vpar_info['vpar_name']
+                + '"\'' + '>> /var/opt/ignite/clients/' + vpar_info['mac']
+                + '/config'
+                + ' && echo \'_hp_keyboard="USB_PS2_DIN_US_English"\''
+                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + ' && echo \'root_password="1uGsgzGKG95gU"\''
+                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + ' && echo \'_hp_root_disk="0/0/0/0.0x0.0x0"\''
+                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + ' && echo \'_my_second_disk_path=""\''
+                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
         return True
@@ -464,37 +375,6 @@ class VParOps(object):
         finally:
             ssh.logout()
 
-        return True
-
-    def ft_boot_vpar(self, ip_addr, profile_name):
-        child_pid = os.fork()
-        if child_pid == 0:
-            cmd_for_lanboot = 'lanboot select -dn ' + profile_name
-            ssh = pexpect.spawn('ssh %s@%s "%s"' % ('root',
-                                                    ip_addr, cmd_for_lanboot))
-            expect_ret = ssh.expect(['Password:',
-                                     'continue connecting (yes/no)?'],
-                                    timeout=CONF.hpux.ssh_timeout_seconds)
-            if expect_ret == 0:
-                ssh.sendline('root')
-            elif expect_ret == 1:
-                ssh.sendline("yes\n")
-                ssh.expect("password:")
-                ssh.sendline('root')
-            else:
-                raise exception.Invalid(_("ssh connection error UNKNOWN"))
-            ssh.expect("NIC")
-            ssh.sendline('01')
-            ssh.close()
-        else:
-            ret = 1
-            while ret > 0:
-                cmd_for_lanboot = 'ps aux | grep lanboot'
-                execute_result = utils.ExecRemoteCmd.exec_remote_cmd(
-                                                           **cmd_for_lanboot)
-                stat = execute_result.split()
-                ret = stat[1]
-                time.sleep(60)
         return True
 
     def init_vhba(self, vhba_info):

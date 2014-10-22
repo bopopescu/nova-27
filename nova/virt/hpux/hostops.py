@@ -213,16 +213,16 @@ class HostOps(object):
             update_info['disk'] = disk_info_dict['total']
             update_info['disk_used'] = disk_info_dict['used']
             # Try to create/update npar info into table "nPar_resource"
-            npar_resource = db.npar_get_by_ip(admin_context, npar['ip_addr'])
-            if npar_resource:
-                if not (npar_resource['vcpus'] == update_info['vcpus'] and
-                    npar_resource['vcpus_used'] == update_info['vcpus_used'] and
-                    npar_resource['memory'] == update_info['memory'] and
-                    npar_resource['memory_used'] == update_info['memory_used'] and
-                    npar_resource['disk'] == update_info['disk'] and
-                    npar_resource['disk_used'] == update_info['disk_used']):
+            npar_res = db.npar_get_by_ip(admin_context, npar['ip_addr'])
+            if npar_res:
+                if not (npar_res['vcpus'] == update_info['vcpus'] and
+                    npar_res['vcpus_used'] == update_info['vcpus_used'] and
+                    npar_res['memory'] == update_info['memory'] and
+                    npar_res['memory_used'] == update_info['memory_used'] and
+                    npar_res['disk'] == update_info['disk'] and
+                    npar_res['disk_used'] == update_info['disk_used']):
                     db.npar_resource_update(admin_context,
-                                            npar_resource['id'], update_info)
+                                            npar_res['id'], update_info)
             else:
                 update_info['ip_addr'] = npar['ip_addr']
                 db.npar_resource_create(admin_context, update_info)

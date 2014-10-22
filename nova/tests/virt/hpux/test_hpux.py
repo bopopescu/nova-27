@@ -121,20 +121,6 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_list_instances.assert_any_call()
         assert 2 == mock_list_instances.call_count
 
-    @mock.patch.object(vparops.VParOps, 'get_instance_host_name')
-    def test_get_instance_host_name(self, mock_get_instance_host_name):
-        fake_host_name = 'napr1'
-        fake_instance = {
-            'name': 'vpar1',
-            'ip_addr': '192.168.0.1'
-        }
-        mock_get_instance_host_name.return_value = fake_host_name
-        conn = hpux_driver.HPUXDriver(None, vparops=vparops.VParOps())
-        host_name = conn.get_instance_host_name(fake_instance['ip_addr'])
-        self.assertEqual(fake_host_name, host_name)
-        mock_get_instance_host_name.assert_called_once_with(
-                                                    fake_instance['ip_addr'])
-
     @mock.patch.object(hpux_driver.HPUXDriver, 'get_num_instances')
     @mock.patch.object(hpux_driver.HPUXDriver, 'list_instances')
     def test_get_num_instances(self, mock_list_instances,
@@ -168,40 +154,12 @@ class HPUXDriverTestCase(test.NoDBTestCase):
     def test_spawn(self, mock_spawn):
         fake_context = context.get_admin_context()
         fake_instance = {'display_name': 'vpar-test'}
-        fake_volume_dic = {
-            'volume': 10000,
-            'volume_nm': 'volum_test',
-            'path': '/dev/vg0'
-        }
-        fake_prof_define_info = {
-            'vpar_name': 'vpar_one',
-            'ip_address': '192.168.0.100',
-            'cip': '192.168.0.101',
-            'gip': '192.168.0.1',
-            'mask': '255.255.255.0'
-        }
-        fake_prof_update_info = {
-            'vpar_name': 'vpar_one',
-            'ip_address': '192.168.0.100',
-            'prof_name': 'prof_test',
-            'boot_fname': '/opt/ignite/boot/Rel_B.11.31/nbp.efi'
-        }
-        fake_vhba_info = {
-            'vpar_name': 'vpar_one',
-            'vpar_component': 'test_unknown',
-            'wwpn': 'pwwn',
-            'wwnn': 'nwwn'
-        }
         conn = hpux_driver.HPUXDriver(None)
-        conn.spawn(fake_context, fake_instance, fake_volume_dic,
-                   fake_prof_define_info, fake_vhba_info,
-                   fake_prof_update_info, network_info=None)
+        conn.spawn(fake_context, fake_instance, None, None, None,
+                   network_info=None, block_device_info=None)
         mock_spawn.assert_called_once_with(fake_context, fake_instance,
-                                           fake_volume_dic,
-                                           fake_prof_define_info,
-                                           fake_vhba_info,
-                                           fake_prof_update_info,
-                                           network_info=None)
+                                           None, None, None, network_info=None,
+                                           block_device_info=None)
 
     @mock.patch.object(vparops.VParOps, 'get_mac_addr')
     def test_get_mac_addr(self, mock_get_mac_addr):
@@ -212,15 +170,3 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mac_addr = conn.get_mac_addr(fake_ip_addr)
         self.assertEqual(fake_mac_addr, mac_addr)
         mock_get_mac_addr.assert_called_once_with(fake_ip_addr)
-
-    @mock.patch.object(vparops.VParOps, 'init_vpar')
-    def test_init_vpar(self, mock_init_vpar):
-        fake_vpar_info = {
-            'vpar_name': 'vpar_fake1',
-            'ip_addr': '192.168.0.1'
-        }
-        mock_init_vpar.return_value = True
-        conn = hpux_driver.HPUXDriver(None)
-        exec_result = conn.init_vpar(fake_vpar_info)
-        self.assertTrue(exec_result)
-        mock_init_vpar.assert_called_once_with(fake_vpar_info)
