@@ -104,34 +104,36 @@ class VParOps(object):
             return vpar_info
 
     def destroy(self, context, instance, network_info):
-        #power off the vpar before vparremove
-        exec_result = None
-        try:
-            cmd_for_destroy = {
+        """Destroy vPar on specified nPar.
+
+        :param instance:
+        :returns:
+        """
+        LOG.debug(_("Begin to destroy vPar %s.") % instance['display_name'])
+        # Power off vpar before "vparremove"
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': instance['host'],
+            'command': '/opt/hpvm/bin/vparreset -p '
+                       + instance['display_name'] + ' -d -f'
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        # Get specified vPar info
+        vpar_info = self._get_vpar_resource_info(instance['display_name'],
+                                                 instance['host'])
+        # Delete the specified vPar if status is "DOWN"
+        if vpar_info['run_state'] == 'DOWN':
+            cmd = {
                 'username': CONF.hpux.username,
                 'password': CONF.hpux.password,
                 'ip_address': instance['host'],
-                'command': '/opt/hpvm/bin/vparreset -p ' +
-                           instance['display_name'] + ' -d -f'
+                'command': '/opt/hpvm/bin/vparremove -p '
+                           + instance['display_name'] + ' -f'
             }
-            exec_result = utils.ExecRemoteCmd().\
-                exec_remote_cmd(**cmd_for_destroy)
-            # delete a vPar
-            # vparremove -p <vpar_name> -f
-            if exec_result != None:
-                cmd_for_destroy = {
-                    'username': CONF.hpux.username,
-                    'password': CONF.hpux.password,
-                    'ip_address': instance['host'],
-                    'command': '/opt/hpvm/bin/vparremove -p ' +
-                               instance['display_name'] + ' -f'
-                 }
-            exec_result = utils.ExecRemoteCmd().exec_remote_cmd(
-                **cmd_for_destroy)
-        except utils.ExceptionPexpect as e:
-            raise exception.Invalid(("Destroy instance error UNKNOWN"))
-        finally:
-            return exec_result
+            utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+            LOG.debug(_("Destroy vPar %s successfully.")
+                      % instance['display_name'])
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):

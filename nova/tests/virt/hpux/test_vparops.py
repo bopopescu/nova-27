@@ -6,16 +6,9 @@ from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
-from nova.virt.hpux import vparops
 from oslo.config import cfg
 
 CONF = cfg.CONF
-
-
-class FakeInstance(object):
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
 
 
 class VParOpsTestCase(test.TestCase):
@@ -47,19 +40,3 @@ class VParOpsTestCase(test.TestCase):
         self.assertEqual(vpar_names, result)
         mock_get_client_list.assert_called_once_with()
         mock_exec_remote_cmd.assert_called_once_with(**cmd_for_npar)
-
-    @mock.patch.object(hpux_driver.HPUXDriver, 'instance_exists')
-    def test_destroy(self, mock_instance_exists):
-        fake_instance = FakeInstance()
-        fake_instance = [{'nParname': 'npar1', 'vParname': 'vpar1',
-                          'host': '10.10.0.1'}]
-        ret_stat_beforedestroy = True
-        if ret_stat_beforedestroy:
-            vparops.VParOps().destroy(self, fake_instance, '10.10.0.1')
-        conn = hpux_driver.HPUXDriver(None)
-        mock_instance_exists.return_value = False
-        ret_stat_afterdestroy = conn.instance_exists(fake_instance)
-        print(ret_stat_afterdestroy)
-        self.assertEqual(False, ret_stat_afterdestroy)
-        self.assertNotEqual(ret_stat_beforedestroy, ret_stat_afterdestroy)
-        mock_instance_exists.assert_called_once_with(fake_instance)
