@@ -8,6 +8,9 @@ from nova import test
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
+from oslo.config import cfg
+
+CONF = cfg.CONF
 
 
 class HPUXDriverTestCase(test.NoDBTestCase):
@@ -150,23 +153,53 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_destroy.assert_called_once_with(fake_context,
                                              fake_instance, fake_network_info)
 
-    @mock.patch.object(vparops.VParOps, 'spawn')
-    def test_spawn(self, mock_spawn):
+    @mock.patch.object(vparops.VParOps, 'lanboot_vpar_by_efi')
+    @mock.patch.object(vparops.VParOps, 'register_vpar_into_ignite')
+    @mock.patch.object(vparops.VParOps, 'get_mac_addr')
+    @mock.patch.object(vparops.VParOps, 'init_vpar')
+    @mock.patch.object(vparops.VParOps, 'define_vpar')
+    @mock.patch.object(vparops.VParOps, 'create_lv')
+    def test_spawn(self, mock_create_lv, mock_define_vpar, mock_init_vpar,
+                   mock_get_mac_addr, mock_register_vpar_into_ignite,
+                   mock_lanboot_vpar_by_efi):
         fake_context = context.get_admin_context()
-        fake_instance = {'display_name': 'vpar-test'}
+        fake_instance = {
+            'id': 2,
+            'display_name': 'vpar-test',
+            'host': '192.168.169.100',
+            'instance_type': {
+                'root_gb': 20,
+                'memory_mb': 1024,
+                'vcpus': 1
+            }
+        }
+        fake_lv_dic = {
+            'lv_size': fake_instance['instance_type']['root_gb'] * 1024,
+            'lv_name': 'lv-' + str(fake_instance['id']),
+            'vg_path': CONF.hpux.vg_name,
+            'host': fake_instance['host']
+        }
+        fake_lv_path = CONF.hpux.vg_name + '/rlv-' + str(fake_instance['id'])
+        fake_mac = '0x888888'
+        fake_vpar_info = {
+            'vpar_name': fake_instance['display_name'],
+            'host': fake_instance['host'],
+            'mem': fake_instance['instance_type']['memory_mb'],
+            'cpu': fake_instance['instance_type']['vcpus'],
+            'lv_path': fake_lv_path
+        }
+        fake_vpar_info['mac'] = fake_mac
+        fake_vpar_info['ip_addr'] = '192.168.169.105'
+        fake_vpar_info['gateway'] = '192.168.168.1'
+        fake_vpar_info['mask'] = '255.255.248.0'
+        mock_create_lv.return_value = fake_lv_path
+        mock_get_mac_addr.return_value = fake_mac
         conn = hpux_driver.HPUXDriver(None)
         conn.spawn(fake_context, fake_instance, None, None, None,
                    network_info=None, block_device_info=None)
-        mock_spawn.assert_called_once_with(fake_context, fake_instance,
-                                           None, None, None, network_info=None,
-                                           block_device_info=None)
-
-    @mock.patch.object(vparops.VParOps, 'get_mac_addr')
-    def test_get_mac_addr(self, mock_get_mac_addr):
-        fake_ip_addr = '192.168.0.1'
-        fake_mac_addr = '0x123456'
-        mock_get_mac_addr.return_value = fake_mac_addr
-        conn = hpux_driver.HPUXDriver(None)
-        mac_addr = conn.get_mac_addr(fake_ip_addr)
-        self.assertEqual(fake_mac_addr, mac_addr)
-        mock_get_mac_addr.assert_called_once_with(fake_ip_addr)
+        mock_create_lv.assert_called_once_with(fake_lv_dic)
+        mock_define_vpar.assert_called_once_with(fake_vpar_info)
+        mock_init_vpar.assert_called_once_with(fake_vpar_info)
+        mock_get_mac_addr.assert_called_once_with(fake_vpar_info)
+        mock_register_vpar_into_ignite.assert_called_once_with(fake_vpar_info)
+        mock_lanboot_vpar_by_efi.assert_called_once_with(fake_vpar_info)

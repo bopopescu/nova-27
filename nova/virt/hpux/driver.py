@@ -134,16 +134,9 @@ class HPUXDriver(driver.ComputeDriver):
         if self.instance_exists(instance['display_name']):
             self._vparops.destroy(context, instance, network_info)
 
-    def get_mac_addr(self, ip_addr):
-        """Get mac address of nPar site lan
-        :param: ip_addr:
-        :return: mac address
-        """
-        return self._vparops.get_mac_addr(ip_addr)
-
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
-        """Spawn new vapr
+        """Spawn new vPar
 
         :param context:
         :param instance:
@@ -154,5 +147,29 @@ class HPUXDriver(driver.ComputeDriver):
         :param block_device_info:
         :return:
         """
-        self._vparops.spawn(context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None)
+        fixed_ip = '192.168.169.105'
+        gateway = '192.168.168.1'
+        mask = '255.255.248.0'
+        lv_dic = {
+            'lv_size': instance['instance_type']['root_gb'] * 1024,
+            'lv_name': 'lv-' + str(instance['id']),
+            'vg_path': CONF.hpux.vg_name,
+            'host': instance['host']
+        }
+        lv_path = self._vparops.create_lv(lv_dic)
+        vpar_info = {
+            'vpar_name': instance['display_name'],
+            'host': instance['host'],
+            'mem': instance['instance_type']['memory_mb'],
+            'cpu': instance['instance_type']['vcpus'],
+            'lv_path': lv_path
+        }
+        self._vparops.define_vpar(vpar_info)
+        self._vparops.init_vpar(vpar_info)
+        mac = self._vparops.get_mac_addr(vpar_info)
+        vpar_info['mac'] = mac
+        vpar_info['ip_addr'] = fixed_ip
+        vpar_info['gateway'] = gateway
+        vpar_info['mask'] = mask
+        self._vparops.register_vpar_into_ignite(vpar_info)
+        self._vparops.lanboot_vpar_by_efi(vpar_info)

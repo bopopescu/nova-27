@@ -129,10 +129,6 @@ class VParOps(object):
             LOG.debug(_("Destroy vPar %s successfully.")
                       % instance['display_name'])
 
-    def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
-        pass
-
     def create_lv(self, lv_dic):
         """Create logical volume for vPar on specified nPar.
 
