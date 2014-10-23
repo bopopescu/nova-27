@@ -7,6 +7,8 @@ Management class for basic vPar operations.
 import pxssh
 import re
 
+from nova import context
+from nova import db
 from nova import exception
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
@@ -58,18 +60,10 @@ class VParOps(object):
         :returns: A list of up(running) vPar name
         """
         vpar_names = []
-        # Here, we should get nPar list from db
-        # to avoid frequent interaction with ignite server.
-        #admin_context = context.get_admin_context()
-        #npar_list = db.npar_get_all(admin_context)
-        npar_list, vpar_list = hostops.HostOps()._get_client_list()
-        # TODO(Sunny): Delete the hard code "npar_list"
-        # Do the deletion after all functions are ready,
-        # here 'npar_list' is just for testing.
-        npar_list = [{'ip_addr': u'192.168.169.100',
-                      'name': u'bl890npar1', 'hostname': u'bl890npar1',
-                      'cpus': 8, 'memory': 66994944 / 1024,
-                      'model': u'ia64 hp Integrity BL890c i4 nPar'}]
+
+        admin_context = context.get_admin_context()
+        npar_list = db.npar_get_all(admin_context)
+
         for npar in npar_list:
             cmd_for_npar = {
                 'username': CONF.hpux.username,
