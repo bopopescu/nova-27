@@ -85,13 +85,13 @@ class VParOps(object):
         :returns: A dict including CPU, memory, disk info and
         run state of required vPar.
         """
-        # TODO(Lei Li): This will be replaced since nPar_list
-        # will get by reading from DB directly. Cut such code for now.
-        #napr_list, vpar_list = hostops.HostOps()._get_client_list()
-        #for vpar in vpar_list:
-            #if vpar['name'] is instance['name']:
-        vpar_info = self._get_vpar_resource_info(instance['vpar_name'],
-                                                 instance['npar_ip_addr'])
+        admin_context = context.get_admin_context()
+        npar_list = db.npar_get_all(admin_context)
+        for npar in npar_list:
+            if instance['npar_ip_addr'] is npar['ip_addr']:
+                vpar_info = self._get_vpar_resource_info(instance['vpar_name'],
+                                                    instance['npar_ip_addr'])
+
         if not vpar_info:
             raise exception.VparNotFound(instance['name'])
         else:
