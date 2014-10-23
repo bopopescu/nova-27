@@ -12,7 +12,6 @@ from nova import db
 from nova import exception
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
-from nova.virt.hpux import hostops
 from nova.virt.hpux import utils
 from oslo.config import cfg
 
@@ -60,10 +59,8 @@ class VParOps(object):
         :returns: A list of up(running) vPar name
         """
         vpar_names = []
-
         admin_context = context.get_admin_context()
         npar_list = db.npar_get_all(admin_context)
-
         for npar in npar_list:
             cmd_for_npar = {
                 'username': CONF.hpux.username,
@@ -85,15 +82,15 @@ class VParOps(object):
         :returns: A dict including CPU, memory, disk info and
         run state of required vPar.
         """
+        vpar_info = {}
         admin_context = context.get_admin_context()
         npar_list = db.npar_get_all(admin_context)
         for npar in npar_list:
-            if instance['npar_ip_addr'] is npar['ip_addr']:
-                vpar_info = self._get_vpar_resource_info(instance['vpar_name'],
-                                                    instance['npar_ip_addr'])
-
+            if instance['_host'] == npar['ip_addr']:
+                vpar_info = self._get_vpar_resource_info(
+                    instance['_display_name'], instance['_host'])
         if not vpar_info:
-            raise exception.VparNotFound(instance['name'])
+            raise exception.VparNotFound(instance['_display_name'])
         else:
             return vpar_info
 
@@ -128,6 +125,24 @@ class VParOps(object):
             utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
             LOG.debug(_("Destroy vPar %s successfully.")
                       % instance['display_name'])
+            # Delete the specified logical volume
+            lv_path = CONF.hpux.vg_name + '/lv-' + str(instance['id'])
+            self.delete_lv(instance['host'], lv_path)
+
+    def delete_lv(self, host, lv_path):
+        """Delete logical volume on specified nPar.
+
+        :param: host: The IP address of specified nPar
+        :param: lv_path: The path of logical volume
+        :returns:
+        """
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': host,
+            'command': 'lvremove -f ' + lv_path
+        }
+        result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
 
     def create_lv(self, lv_dic):
         """Create logical volume for vPar on specified nPar.
@@ -213,9 +228,9 @@ class VParOps(object):
         :param: A dict containing:
              :vpar_name: The name of vPar
              :host: The IP address of specified nPar
-        :return: mac_addr: The MAC address of vPar
+        :return: mgmt_mac: The MAC address of vPar for Management Network
         """
-        mac_addr = None
+        mgmt_mac = None
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
@@ -231,17 +246,18 @@ class VParOps(object):
                 for io in io_details:
                     if CONF.hpux.management_network in io:
                         mac_addr = io.split(':')[2].split(',')[2]
-        return mac_addr
+                        mgmt_mac = '0x' + mac_addr[2:].upper()
+        return mgmt_mac
 
     def register_vpar_into_ignite(self, vpar_info):
         """Register vPar into ignite server.
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :mac: The mac address of vPar
-             :ip_addr: The IP address of vPar
-             :gateway: The gateway of vPar
-             :mask: The mask of vPar
+             :mgmt_mac: The mac address of vPar for Management Network
+             :mgmt_ip: The IP address of vPar for Management Network
+             :mgmt_gw: The gateway of vPar for Management Network
+             :mgmt_mask: The mask of vPar for Management Network
         :return: True if no error in the process of registration
         """
         # Add vPar network info into the end of /etc/bootptab on ignite server
@@ -252,27 +268,28 @@ class VParOps(object):
             'command': ' echo \'' + vpar_info['vpar_name'] + ':\\\''
                 + ' >> /etc/bootptab'
                 + ' && echo \'\ttc=ignite-defaults:\\\'' + ' >> /etc/bootptab'
-                + ' && echo \'\tha=' + vpar_info['mac'] + ':\\\''
+                + ' && echo \'\tha=' + vpar_info['mgmt_mac'] + ':\\\''
                 + ' >> /etc/bootptab'
                 + ' && echo \'\tbf=/opt/ignite/boot/Rel_B.11.31/nbp.efi:\\\''
                 + ' >> /etc/bootptab'
-                + ' && echo \'\tgw=' + vpar_info['gateway'] + ':\\\''
+                + ' && echo \'\tgw=' + vpar_info['mgmt_gw'] + ':\\\''
                 + ' >> /etc/bootptab'
-                + ' && echo \'\tip=' + vpar_info['ip_addr'] + ':\\\''
+                + ' && echo \'\tip=' + vpar_info['mgmt_ip'] + ':\\\''
                 + ' >> /etc/bootptab'
-                + ' && echo \'\tsm=' + vpar_info['mask'] + '\''
+                + ' && echo \'\tsm=' + vpar_info['mgmt_mask'] + '\''
                 + ' >> /etc/bootptab'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_network)
 
         # Create config file for client(vPar)
+        config_path = '/var/opt/ignite/clients/'\
+                      + vpar_info['mgmt_mac'] + '/config'
         cmd_for_create_config = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': 'mkdir /var/opt/ignite/clients/' + vpar_info['mac'] +
-                       '&& touch /var/opt/ignite/clients/' + vpar_info['mac'] +
-                       '/config'
+            'command': 'mkdir /var/opt/ignite/clients/' + vpar_info['mgmt_mac']
+                       + '&& touch ' + config_path
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_create_config)
 
@@ -281,21 +298,20 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': ' echo \'cfg "HP-UX B.11.31.1403 golden_image"=TRUE\''
-                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+            'command': ' echo \'cfg "' + vpar_info['image_name'] + '"=TRUE\''
+                + '>> ' + config_path
                 + ' && echo \'_hp_cfg_detail_level="v"\''
-                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + '>> ' + config_path
                 + ' && echo \'final system_name="' + vpar_info['vpar_name']
-                + '"\'' + '>> /var/opt/ignite/clients/' + vpar_info['mac']
-                + '/config'
+                + '"\'' + '>> ' + config_path
                 + ' && echo \'_hp_keyboard="USB_PS2_DIN_US_English"\''
-                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + '>> ' + config_path
                 + ' && echo \'root_password="1uGsgzGKG95gU"\''
-                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + '>> ' + config_path
                 + ' && echo \'_hp_root_disk="0/0/0/0.0x0.0x0"\''
-                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + '>> ' + config_path
                 + ' && echo \'_my_second_disk_path=""\''
-                + '>> /var/opt/ignite/clients/' + vpar_info['mac'] + '/config'
+                + '>> ' + config_path
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
         return True
@@ -306,18 +322,18 @@ class VParOps(object):
         :param: A dict containing:
              :vpar_name: The name of vPar
              :host: The IP address of specified nPar
-             :ip_addr: The IP address of vPar
-             :gateway: The gateway of vPar
-             :mask: The mask of vPar
+             :mgmt_ip: The IP address of vPar for Management Network
+             :mgmt_gw: The gateway of vPar for Management Network
+             :mgmt_mask: The mask of vPar for Management Network
         :return: True if no error in the process of lanboot
         """
         cmd_vparconsole = '/opt/hpvm/bin/vparconsole -P '\
                           + vpar_info['vpar_name']
         cmd_dbprofile_network = 'dbprofile -dn profile-test' +\
                                 ' -sip ' + CONF.hpux.ignite_ip +\
-                                ' -cip ' + vpar_info['ip_addr'] +\
-                                ' -gip ' + vpar_info['gateway'] +\
-                                ' -m ' + vpar_info['mask']
+                                ' -cip ' + vpar_info['mgmt_ip'] +\
+                                ' -gip ' + vpar_info['mgmt_gw'] +\
+                                ' -m ' + vpar_info['mgmt_mask']
         cmd_dbprofile_kernel = 'dbprofile -dn profile-test' +\
                                ' -b "/opt/ignite/boot/Rel_B.11.31/nbp.efi"'
         cmd_lanboot = 'lanboot select -index 01 -dn profile-test'
@@ -362,6 +378,8 @@ class VParOps(object):
             ssh.send(cmd_lanboot)
             ssh.send('\r\n')
             ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
+            console_log = re.sub('\x1b\[[0-9;]*[m|H|J]', '', ssh.before)
+            LOG.info(_("\n%s") % console_log)
         except pxssh.ExceptionPxssh:
             raise exception.Invalid(_("pxssh failed on login."))
         finally:

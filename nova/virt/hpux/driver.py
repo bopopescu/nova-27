@@ -5,6 +5,8 @@ A HP-UX Nova Compute driver.
 """
 
 from nova import db
+from nova.openstack.common.gettextutils import _
+from nova.openstack.common import log as logging
 from nova.virt import driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
@@ -39,6 +41,8 @@ hpux_opts = [
 
 CONF = cfg.CONF
 CONF.register_opts(hpux_opts, 'hpux')
+
+LOG = logging.getLogger(__name__)
 
 
 class HPUXDriver(driver.ComputeDriver):
@@ -94,17 +98,6 @@ class HPUXDriver(driver.ComputeDriver):
         instances_list = self._vparops.list_instances()
         return len(instances_list)
 
-    def scheduler_dispatch(self, context, vPar_info):
-        """Lookup target nPar.
-
-        :param context:
-        :param vPar_info: (dict) the required vPar info
-        :returns: dictionary containing nPar info
-        """
-        nPar_list = db.npar_get_all(context)
-        nPar = self._hostops.nPar_lookup(vPar_info, nPar_list)
-        return nPar
-
     def instance_exists(self, instance_name):
         """Check if target instance exists.
 
@@ -134,9 +127,30 @@ class HPUXDriver(driver.ComputeDriver):
         if self.instance_exists(instance['display_name']):
             self._vparops.destroy(context, instance, network_info)
 
+    def scheduler_dispatch(self, context, vPar_info):
+        """Lookup target nPar.
+
+        :param context:
+        :param vPar_info: (dict) the required vPar info
+        :returns: dictionary containing nPar info
+        """
+        nPar_list = db.npar_get_all(context)
+        npar = self._hostops.nPar_lookup(vPar_info, nPar_list)
+        if npar:
+            LOG.debug(_("Scheduler successfully, find available nPar %s.")
+                      % npar['ip_addr'])
+            # Try to update "host" field for "nova.instances" table
+            update_info = {'host': npar['ip_addr']}
+            db.instance_update(context, vPar_info['uuid'], update_info)
+        else:
+            LOG.exception(_("Scheduler failed in driver,"
+                            "couldn't find available nPar."))
+            raise
+        return npar
+
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
-        """Spawn new vPar
+        """Spawn new vPar.
 
         :param context:
         :param instance:
@@ -147,29 +161,41 @@ class HPUXDriver(driver.ComputeDriver):
         :param block_device_info:
         :return:
         """
-        fixed_ip = '192.168.169.105'
-        gateway = '192.168.168.1'
-        mask = '255.255.248.0'
-        lv_dic = {
-            'lv_size': instance['instance_type']['root_gb'] * 1024,
-            'lv_name': 'lv-' + str(instance['id']),
-            'vg_path': CONF.hpux.vg_name,
-            'host': instance['host']
+        # Scheduler in driver
+        memory = int(instance['_system_metadata']['instance_type_memory_mb'])
+        cpu = int(instance['_system_metadata']['instance_type_vcpus'])
+        disk = int(instance['_system_metadata']['instance_type_root_gb'])
+        vpar_info_for_scheduler = {
+            'mem': memory,
+            'cpu': cpu,
+            'disk': disk,
+            'uuid': instance['_uuid']
         }
-        lv_path = self._vparops.create_lv(lv_dic)
+        npar = self.scheduler_dispatch(context, vpar_info_for_scheduler)
+
+        # Here, we can't use instance['_host'] as host value,
+        # should use selected npar['ip_addr'].
+        lv_dict = {
+            'lv_size': disk,
+            'lv_name': 'lv-' + str(instance['_id']),
+            'vg_path': CONF.hpux.vg_name,
+            'host': npar['ip_addr']
+        }
+        lv_path = self._vparops.create_lv(lv_dict)
         vpar_info = {
-            'vpar_name': instance['display_name'],
-            'host': instance['host'],
-            'mem': instance['instance_type']['memory_mb'],
-            'cpu': instance['instance_type']['vcpus'],
-            'lv_path': lv_path
+            'vpar_name': instance['_display_name'],
+            'host': npar['ip_addr'],
+            'mem': memory,
+            'cpu': cpu,
+            'lv_path': lv_path,
+            'image_name': image_meta['name']
         }
         self._vparops.define_vpar(vpar_info)
         self._vparops.init_vpar(vpar_info)
         mac = self._vparops.get_mac_addr(vpar_info)
-        vpar_info['mac'] = mac
-        vpar_info['ip_addr'] = fixed_ip
-        vpar_info['gateway'] = gateway
-        vpar_info['mask'] = mask
+        vpar_info['mgmt_mac'] = mac
+        vpar_info['mgmt_ip'] = instance['_metadata']['mgmt_ip']
+        vpar_info['mgmt_gw'] = instance['_metadata']['mgmt_gw']
+        vpar_info['mgmt_mask'] = instance['_metadata']['mgmt_mask']
         self._vparops.register_vpar_into_ignite(vpar_info)
         self._vparops.lanboot_vpar_by_efi(vpar_info)
