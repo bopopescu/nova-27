@@ -37,6 +37,9 @@ hpux_opts = [
     cfg.StrOpt('production_network',
                default='localnet',
                help='Production network for vPar'),
+    cfg.StrOpt('network_label',
+               default='hpux',
+               help='Network label for hpux vPar'),
     ]
 
 CONF = cfg.CONF
@@ -161,6 +164,17 @@ class HPUXDriver(driver.ComputeDriver):
         :param block_device_info:
         :return:
         """
+        # Get fixed ip address from network_info
+        mgmt_ip = None
+        for vif in network_info:
+            if vif['network']['label'] == CONF.hpux.network_label:
+                for ip in vif.fixed_ips():
+                    if ip['version'] == 4:
+                        mgmt_ip = ip['address']
+        if not mgmt_ip:
+            LOG.exception(_("Couldn't get fixed ip from network info."))
+            raise
+
         # Scheduler in driver
         memory = int(instance['_system_metadata']['instance_type_memory_mb'])
         cpu = int(instance['_system_metadata']['instance_type_vcpus'])
@@ -194,7 +208,7 @@ class HPUXDriver(driver.ComputeDriver):
         self._vparops.init_vpar(vpar_info)
         mac = self._vparops.get_mac_addr(vpar_info)
         vpar_info['mgmt_mac'] = mac
-        vpar_info['mgmt_ip'] = instance['_metadata']['mgmt_ip']
+        vpar_info['mgmt_ip'] = mgmt_ip
         vpar_info['mgmt_gw'] = instance['_metadata']['mgmt_gw']
         vpar_info['mgmt_mask'] = instance['_metadata']['mgmt_mask']
         self._vparops.register_vpar_into_ignite(vpar_info)
