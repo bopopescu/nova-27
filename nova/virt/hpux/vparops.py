@@ -97,19 +97,18 @@ class VParOps(object):
     def destroy(self, context, instance, network_info):
         """Destroy vPar on specified nPar.
 
+        :param context:
         :param instance:
+        :param network_info:
         :returns:
         """
         LOG.debug(_("Begin to destroy vPar %s.") % instance['display_name'])
-        # Power off vpar before "vparremove"
-        cmd = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': instance['host'],
-            'command': '/opt/hpvm/bin/vparreset -p '
-                       + instance['display_name'] + ' -d -f'
+        # Power off vPar before "vparremove"
+        vpar_info = {
+            'host': instance['host'],
+            'vpar_name': instance['display_name']
         }
-        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        self.power_off_vpar(vpar_info)
         # Get specified vPar info
         vpar_info = self._get_vpar_resource_info(instance['display_name'],
                                                  instance['host'])
@@ -387,33 +386,59 @@ class VParOps(object):
 
         return True
 
-    def init_vhba(self, vhba_info):
-        #Attach vhba
-        cmd_for_vhba = {
-            'username': 'root',
-            'password': 'root',
-            'ip_address': vhba_info['host'],
-            'command': 'vparreset -f -p ' + vhba_info['vpar_name'] + ' -d'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vhba)
-        #Force to reset vPar, must succeed:
-        cmd_for_vhba = {
-            'username': 'root',
-            'password': 'root',
-            'ip_address': vhba_info['host'],
-            'command': 'vparmodify -p ' + vhba_info['vpar_name'] + ' -a ' +
-                       vhba_info['vpar_component'] + ':avio_stor:,,' +
-                       vhba_info['wwpn'] + ',' + vhba_info['wwnn'] +
-                       ':npiv:/dev/fcd0'
-        }
-        utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_vhba)
-        return True
+    def power_off_vpar(self, vpar_info):
+        """Power off vPar on specified nPar.
 
-    def boot_vpar(self, vpar_info):
-        cmd_for_boot = {
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :host: The IP address of specified nPar
+        :return:
+        """
+        # Force to power off vPar
+        cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['host'],
-            'command': 'vparboot -p ' + vpar_info['vpar_name']
+            'command': '/opt/hpvm/bin/vparreset -f -p '
+                       + vpar_info['vpar_name'] + ' -d'
         }
-        return utils.ExecRemoteCmd.exec_remote_cmd(**cmd_for_boot)
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+
+    def init_vhba(self, vpar_info):
+        """Attach vHBA to vPar on specified nPar.
+
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :host: The IP address of specified nPar
+             :wwpn: The wwpn for FC HBA "/dev/fcd0"
+             :wwnn: The wwnn for FC HBA "/dev/fcd0"
+        :return:
+        """
+        # Force to power off vPar, don't care succeed or fail
+        self.power_off_vpar(vpar_info)
+        # Attach vHBA
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': vpar_info['host'],
+            'command': '/opt/hpvm/bin/vparmodify -p ' + vpar_info['vpar_name']
+                       + ' -a ' + 'hba:avio_stor:,,' + vpar_info['wwpn']
+                       + ',' + vpar_info['wwnn'] + ':npiv:/dev/fcd0'
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+
+    def boot_vpar(self, vpar_info):
+        """Boot vPar on specified nPar.
+
+        :param: A dict containing:
+             :vpar_name: The name of vPar
+             :host: The IP address of specified nPar
+        :return:
+        """
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': vpar_info['host'],
+            'command': '/opt/hpvm/bin/vparboot -p ' + vpar_info['vpar_name']
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
