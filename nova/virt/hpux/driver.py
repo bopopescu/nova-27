@@ -143,9 +143,14 @@ class HPUXDriver(driver.ComputeDriver):
         if npar:
             LOG.debug(_("Scheduler successfully, find available nPar %s.")
                       % npar['ip_addr'])
-            # Try to update "host" field for "nova.instances" table
-            update_info = {'host': npar['ip_addr']}
-            db.instance_update(context, vPar_info['uuid'], update_info)
+            # Try to update nPar IP into "nova.instance_metadata" table
+            # NOTE(Sunny): Here, we can't update "host" field for
+            # "nova.instances" table, otherwise, compute manager will not
+            # be able to receive asynchronous request (eg. when you delete
+            # specified vPar).
+            meta = vPar_info['meta']
+            meta['npar_host'] = npar['ip_addr']
+            db.instance_update(context, vPar_info['uuid'], {'metadata': meta})
         else:
             LOG.exception(_("Scheduler failed in driver,"
                             "couldn't find available nPar."))
@@ -185,22 +190,24 @@ class HPUXDriver(driver.ComputeDriver):
             'mem': memory,
             'cpu': cpu,
             'disk': disk,
-            'uuid': instance['_uuid']
+            'uuid': instance['_uuid'],
+            'meta': instance['_metadata']
         }
         npar = self.scheduler_dispatch(context, vpar_info_for_scheduler)
 
-        # Here, we can't use instance['_host'] as host value,
+        # Here, we can't use instance['_host'] or
+        # instance['_metadata']['npar_host'] as npar_host value,
         # should use selected npar['ip_addr'].
         lv_dict = {
             'lv_size': disk,
-            'lv_name': 'lv-' + str(instance['_id']),
+            'lv_name': 'lv-' + instance['_uuid'],
             'vg_path': CONF.hpux.vg_name,
-            'host': npar['ip_addr']
+            'npar_host': npar['ip_addr']
         }
         lv_path = self._vparops.create_lv(lv_dict)
         vpar_info = {
             'vpar_name': instance['_display_name'],
-            'host': npar['ip_addr'],
+            'npar_host': npar['ip_addr'],
             'mem': memory,
             'cpu': cpu,
             'lv_path': lv_path,

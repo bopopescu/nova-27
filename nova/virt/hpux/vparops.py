@@ -85,10 +85,11 @@ class VParOps(object):
         vpar_info = {}
         admin_context = context.get_admin_context()
         npar_list = db.npar_get_all(admin_context)
+        npar_host = instance['_metadata']['npar_host']
         for npar in npar_list:
-            if instance['_host'] == npar['ip_addr']:
+            if npar_host == npar['ip_addr']:
                 vpar_info = self._get_vpar_resource_info(
-                    instance['_display_name'], instance['_host'])
+                    instance['_display_name'], npar_host)
         if not vpar_info:
             raise exception.VparNotFound(instance['_display_name'])
         else:
@@ -103,42 +104,44 @@ class VParOps(object):
         :returns:
         """
         LOG.debug(_("Begin to destroy vPar %s.") % instance['display_name'])
+        npar_host = instance['metadata']['npar_host']
         # Power off vPar before "vparremove"
         vpar_info = {
-            'host': instance['host'],
+            'npar_host': npar_host,
             'vpar_name': instance['display_name']
         }
         self.power_off_vpar(vpar_info)
         # Get specified vPar info
         vpar_info = self._get_vpar_resource_info(instance['display_name'],
-                                                 instance['host'])
+                                                 npar_host)
         # Delete the specified vPar if status is "DOWN"
         if vpar_info['run_state'] == 'DOWN':
             cmd = {
                 'username': CONF.hpux.username,
                 'password': CONF.hpux.password,
-                'ip_address': instance['host'],
+                'ip_address': npar_host,
                 'command': '/opt/hpvm/bin/vparremove -p '
                            + instance['display_name'] + ' -f'
             }
             utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+            # Delete the specified logical volume
+            lv_path = CONF.hpux.vg_name + '/lv-' + instance['uuid']
+            self.delete_lv(npar_host, lv_path)
             LOG.debug(_("Destroy vPar %s successfully.")
                       % instance['display_name'])
-            # Delete the specified logical volume
-            lv_path = CONF.hpux.vg_name + '/lv-' + str(instance['id'])
-            self.delete_lv(instance['host'], lv_path)
 
-    def delete_lv(self, host, lv_path):
+    def delete_lv(self, npar_host, lv_path):
         """Delete logical volume on specified nPar.
 
-        :param: host: The IP address of specified nPar
+        :param: npar_host: The IP address of specified nPar
         :param: lv_path: The path of logical volume
         :returns:
         """
+        LOG.debug(_("Begin to delete logical volume %s.") % lv_path)
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': host,
+            'ip_address': npar_host,
             'command': 'lvremove -f ' + lv_path
         }
         result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
@@ -150,14 +153,14 @@ class VParOps(object):
              :lv_size: The size of logical volume
              :lv_name: The name of logical volume
              :vg_path: The path of volume group
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
         :returns: created_lv_path: The path of created logical volume
         """
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': lv_dic['host'],
-            'command': 'lvcreate -L ' + lv_dic['lv_size'] +
+            'ip_address': lv_dic['npar_host'],
+            'command': 'lvcreate -L ' + str(lv_dic['lv_size']) +
                        ' -n ' + lv_dic['lv_name'] +
                        ' ' + lv_dic['vg_path']
         }
@@ -176,16 +179,17 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
              :mem: The memory of vPar
              :cpu: The cpu of vPar
              :lv_path: The path of logical volume
         :returns:
         """
+        LOG.debug(_("Begin to create vPar %s.") % vpar_dic['vpar_name'])
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_dic['host'],
+            'ip_address': vpar_dic['npar_host'],
             'command': '/opt/hpvm/bin/vparcreate -p ' +
                        vpar_dic['vpar_name'] +
                        ' -a mem::' + str(vpar_dic['mem']) +
@@ -203,13 +207,13 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
         :return: True if vPar boot successfully
         """
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
+            'ip_address': vpar_info['npar_host'],
             'command': '/opt/hpvm/bin/vparboot -p ' +
                        vpar_info['vpar_name']
         }
@@ -226,14 +230,15 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
         :return: mgmt_mac: The MAC address of vPar for Management Network
         """
+        LOG.debug(_("Begin to get MAC of vPar %s.") % vpar_info['vpar_name'])
         mgmt_mac = None
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
+            'ip_address': vpar_info['npar_host'],
             'command': '/opt/hpvm/bin/vparstatus -p ' +
                        vpar_info['vpar_name'] + ' -v'
         }
@@ -260,6 +265,8 @@ class VParOps(object):
         :return: True if no error in the process of registration
         """
         # Add vPar network info into the end of /etc/bootptab on ignite server
+        LOG.debug(_("Begin to register network info on ignite server %s"
+                    " for vPar.") % CONF.hpux.ignite_ip)
         cmd_for_network = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
@@ -281,6 +288,8 @@ class VParOps(object):
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_network)
 
         # Create config file for client(vPar)
+        LOG.debug(_("Begin to create client directory on ignite server %s"
+                    " for vPar by MAC.") % CONF.hpux.ignite_ip)
         config_path = '/var/opt/ignite/clients/'\
                       + vpar_info['mgmt_mac'] + '/config'
         cmd_for_create_config = {
@@ -293,6 +302,8 @@ class VParOps(object):
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_create_config)
 
         # Add config info into the end of /var/opt/ignite/clients/<MAC>/config
+        LOG.debug(_("Begin to create config file on ignite server %s"
+                    " for vPar.") % CONF.hpux.ignite_ip)
         cmd_for_config = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
@@ -320,7 +331,7 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
              :mgmt_ip: The IP address of vPar for Management Network
              :mgmt_gw: The gateway of vPar for Management Network
              :mgmt_mask: The mask of vPar for Management Network
@@ -341,7 +352,7 @@ class VParOps(object):
                       % vpar_info['vpar_name'])
             # Get ssh connection
             ssh = pxssh.pxssh()
-            ssh.login(vpar_info['host'], CONF.hpux.username,
+            ssh.login(vpar_info['npar_host'], CONF.hpux.username,
                       CONF.hpux.password, original_prompt='[$#>]',
                       login_timeout=CONF.hpux.ssh_timeout_seconds)
 
@@ -376,7 +387,8 @@ class VParOps(object):
             # Send command related to "lanboot"
             ssh.send(cmd_lanboot)
             ssh.send('\r\n')
-            ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
+            #ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
+            ssh.prompt(timeout=20)
             console_log = re.sub('\x1b\[[0-9;]*[m|H|J]', '', ssh.before)
             LOG.info(_("\n%s") % console_log)
         except pxssh.ExceptionPxssh:
@@ -391,25 +403,31 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
         :return:
         """
         # Force to power off vPar
+        LOG.debug(_("Begin to power off vPar %s.") % vpar_info['vpar_name'])
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
+            'ip_address': vpar_info['npar_host'],
             'command': '/opt/hpvm/bin/vparreset -f -p '
                        + vpar_info['vpar_name'] + ' -d'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        # TODO(Sunny): Work around
+        # Here, "vparreset" need some time to power off vPar.
+        # The better way is to check vPar status in real time.
+        import time
+        time.sleep(10)
 
     def init_vhba(self, vpar_info):
         """Attach vHBA to vPar on specified nPar.
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
              :wwpn: The wwpn for FC HBA "/dev/fcd0"
              :wwnn: The wwnn for FC HBA "/dev/fcd0"
         :return:
@@ -417,10 +435,12 @@ class VParOps(object):
         # Force to power off vPar, don't care succeed or fail
         self.power_off_vpar(vpar_info)
         # Attach vHBA
+        LOG.debug(_("Begin to attach vHBA for vPar %s.")
+                  % vpar_info['vpar_name'])
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
+            'ip_address': vpar_info['npar_host'],
             'command': '/opt/hpvm/bin/vparmodify -p ' + vpar_info['vpar_name']
                        + ' -a ' + 'hba:avio_stor:,,' + vpar_info['wwpn']
                        + ',' + vpar_info['wwnn'] + ':npiv:/dev/fcd0'
@@ -432,13 +452,14 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
-             :host: The IP address of specified nPar
+             :npar_host: The IP address of specified nPar
         :return:
         """
+        LOG.debug(_("Begin to boot vPar %s.") % vpar_info['vpar_name'])
         cmd = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
-            'ip_address': vpar_info['host'],
+            'ip_address': vpar_info['npar_host'],
             'command': '/opt/hpvm/bin/vparboot -p ' + vpar_info['vpar_name']
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd)

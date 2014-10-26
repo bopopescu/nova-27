@@ -128,14 +128,17 @@ class HPUXDriverTestCase(test.NoDBTestCase):
     def test_scheduler_dispatch(self, mock_npar_get_all,
                                 mock_nPar_lookup, mock_instance_update):
         fake_context = context.get_admin_context()
+        fake_nPar = {'ip_addr': '192.168.169.100'}
         fake_vPar_info = {
             'mem': 1024,
             'num_cpu': 2,
             'disk': 5,
-            'uuid': '15e173c9-500a-4a8b-8189-80ff5693fc58'
+            'uuid': '15e173c9-500a-4a8b-8189-80ff5693fc58',
+            'meta': {
+                'npar_host': fake_nPar['ip_addr']
+            }
         }
-        fake_nPar = {'ip_addr': '192.168.169.100'}
-        fake_update_info = {'host': fake_nPar['ip_addr']}
+        fake_update_info = {'metadata': fake_vPar_info['meta']}
         fake_nPar_list = []
         fake_nPar_list.append(fake_nPar)
         mock_npar_get_all.return_value = fake_nPar_list
@@ -169,18 +172,20 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         for ip in fake_network_info[0].fixed_ips():
             if ip['version'] == 4:
                 mgmt_ip = ip['address']
+        fake_npar = {'ip_addr': '192.168.169.100',
+                     'name': 'bl890npar1', 'hostname': 'bl890npar1',
+                     'cpus': 8, 'memory': 66994944 / 1024,
+                     'model': 'ia64 hp Integrity BL890c i4 nPar'}
         fake_instance = {
             '_id': 2,
             '_uuid': '15e173c9-500a-4a8b-8189-80ff5693fc58',
             '_display_name': 'vpar-test',
-            'host': '192.168.169.100',
             '_system_metadata': {
                 'instance_type_root_gb': 20,
                 'instance_type_memory_mb': 1024,
                 'instance_type_vcpus': 1
             },
             '_metadata': {
-                'mgmt_ip': mgmt_ip,
                 'mgmt_gw': '192.168.168.1',
                 'mgmt_mask': '255.255.248.0'
             }
@@ -190,14 +195,14 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         cpu = fake_instance['_system_metadata']['instance_type_vcpus']
         fake_lv_dict = {
             'lv_size': disk,
-            'lv_name': 'lv-' + str(fake_instance['_id']),
+            'lv_name': 'lv-' + fake_instance['_uuid'],
             'vg_path': CONF.hpux.vg_name,
-            'host': fake_instance['host']
+            'npar_host': fake_npar['ip_addr']
         }
-        fake_lv_path = CONF.hpux.vg_name + '/rlv-' + str(fake_instance['_id'])
+        fake_lv_path = CONF.hpux.vg_name + '/rlv-' + fake_instance['_uuid']
         fake_vpar_info = {
             'vpar_name': fake_instance['_display_name'],
-            'host': fake_instance['host'],
+            'npar_host': fake_npar['ip_addr'],
             'mem': memory,
             'cpu': cpu,
             'lv_path': fake_lv_path,
@@ -205,19 +210,16 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         }
         fake_mac = '0x888888'
         fake_vpar_info['mgmt_mac'] = fake_mac
-        fake_vpar_info['mgmt_ip'] = fake_instance['_metadata']['mgmt_ip']
+        fake_vpar_info['mgmt_ip'] = mgmt_ip
         fake_vpar_info['mgmt_gw'] = fake_instance['_metadata']['mgmt_gw']
         fake_vpar_info['mgmt_mask'] = fake_instance['_metadata']['mgmt_mask']
         fake_vpar_info_for_scheduler = {
             'mem': memory,
             'cpu': cpu,
             'disk': disk,
-            'uuid': fake_instance['_uuid']
+            'uuid': fake_instance['_uuid'],
+            'meta': fake_instance['_metadata']
         }
-        fake_npar = {'ip_addr': '192.168.169.100',
-                     'name': 'bl890npar1', 'hostname': 'bl890npar1',
-                     'cpus': 8, 'memory': 66994944 / 1024,
-                     'model': 'ia64 hp Integrity BL890c i4 nPar'}
         mock_scheduler_dispatch.return_value = fake_npar
         mock_create_lv.return_value = fake_lv_path
         mock_get_mac_addr.return_value = fake_mac
