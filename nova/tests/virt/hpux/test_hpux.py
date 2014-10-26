@@ -3,7 +3,9 @@ __author__ = 'psteam'
 import mock
 
 from nova import context
+from nova import db
 from nova import test
+from nova.tests import utils as test_utils
 from nova.virt.hpux import driver as hpux_driver
 from nova.virt.hpux import hostops
 from nova.virt.hpux import vparops
@@ -120,6 +122,34 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_destroy.assert_called_once_with(fake_context,
                                              fake_instance, fake_network_info)
 
+    @mock.patch.object(db, 'instance_update')
+    @mock.patch.object(hostops.HostOps, "nPar_lookup")
+    @mock.patch.object(db, 'npar_get_all')
+    def test_scheduler_dispatch(self, mock_npar_get_all,
+                                mock_nPar_lookup, mock_instance_update):
+        fake_context = context.get_admin_context()
+        fake_vPar_info = {
+            'mem': 1024,
+            'num_cpu': 2,
+            'disk': 5,
+            'uuid': '15e173c9-500a-4a8b-8189-80ff5693fc58'
+        }
+        fake_nPar = {'ip_addr': '192.168.169.100'}
+        fake_update_info = {'host': fake_nPar['ip_addr']}
+        fake_nPar_list = []
+        fake_nPar_list.append(fake_nPar)
+        mock_npar_get_all.return_value = fake_nPar_list
+        mock_nPar_lookup.return_value = fake_nPar
+        conn = hpux_driver.HPUXDriver(None, hostops=hostops.HostOps())
+        nPar = conn.scheduler_dispatch(fake_context, fake_vPar_info)
+        self.assertEqual(fake_nPar, nPar)
+        mock_npar_get_all.assert_called_once_with(fake_context)
+        mock_nPar_lookup.assert_called_once_with(fake_vPar_info,
+                                                 fake_nPar_list)
+        mock_instance_update.assert_called_once_with(fake_context,
+                                                     fake_vPar_info['uuid'],
+                                                     fake_update_info)
+
     @mock.patch.object(vparops.VParOps, 'lanboot_vpar_by_efi')
     @mock.patch.object(vparops.VParOps, 'register_vpar_into_ignite')
     @mock.patch.object(vparops.VParOps, 'get_mac_addr')
@@ -133,6 +163,12 @@ class HPUXDriverTestCase(test.NoDBTestCase):
                    mock_lanboot_vpar_by_efi):
         fake_context = context.get_admin_context()
         fake_image_meta = {'name': 'HP-UX B.11.31.1403 golden_image'}
+        fake_network_info = test_utils.get_test_network_info()
+        fake_network_info[0]['network']['label'] = 'hpux'
+        mgmt_ip = '192.168.169.105'
+        for ip in fake_network_info[0].fixed_ips():
+            if ip['version'] == 4:
+                mgmt_ip = ip['address']
         fake_instance = {
             '_id': 2,
             '_uuid': '15e173c9-500a-4a8b-8189-80ff5693fc58',
@@ -144,7 +180,7 @@ class HPUXDriverTestCase(test.NoDBTestCase):
                 'instance_type_vcpus': 1
             },
             '_metadata': {
-                'mgmt_ip': '192.168.169.105',
+                'mgmt_ip': mgmt_ip,
                 'mgmt_gw': '192.168.168.1',
                 'mgmt_mask': '255.255.248.0'
             }
@@ -159,7 +195,6 @@ class HPUXDriverTestCase(test.NoDBTestCase):
             'host': fake_instance['host']
         }
         fake_lv_path = CONF.hpux.vg_name + '/rlv-' + str(fake_instance['_id'])
-        fake_mac = '0x888888'
         fake_vpar_info = {
             'vpar_name': fake_instance['_display_name'],
             'host': fake_instance['host'],
@@ -168,6 +203,7 @@ class HPUXDriverTestCase(test.NoDBTestCase):
             'lv_path': fake_lv_path,
             'image_name': fake_image_meta['name']
         }
+        fake_mac = '0x888888'
         fake_vpar_info['mgmt_mac'] = fake_mac
         fake_vpar_info['mgmt_ip'] = fake_instance['_metadata']['mgmt_ip']
         fake_vpar_info['mgmt_gw'] = fake_instance['_metadata']['mgmt_gw']
@@ -187,7 +223,7 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         mock_get_mac_addr.return_value = fake_mac
         conn = hpux_driver.HPUXDriver(None)
         conn.spawn(fake_context, fake_instance, fake_image_meta, None, None,
-                   network_info=None, block_device_info=None)
+                   network_info=fake_network_info, block_device_info=None)
         mock_scheduler_dispatch.assert_called_once_with(fake_context,
                                                 fake_vpar_info_for_scheduler)
         mock_create_lv.assert_called_once_with(fake_lv_dict)

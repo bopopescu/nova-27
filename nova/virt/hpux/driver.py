@@ -5,6 +5,7 @@ A HP-UX Nova Compute driver.
 """
 
 from nova import db
+from nova import exception
 from nova.openstack.common.gettextutils import _
 from nova.openstack.common import log as logging
 from nova.virt import driver
@@ -173,7 +174,8 @@ class HPUXDriver(driver.ComputeDriver):
                         mgmt_ip = ip['address']
         if not mgmt_ip:
             LOG.exception(_("Couldn't get fixed ip from network info."))
-            raise
+            raise exception.FixedIpNotFoundForInstance(
+                instance_uuid=instance['_uuid'])
 
         # Scheduler in driver
         memory = int(instance['_system_metadata']['instance_type_memory_mb'])
