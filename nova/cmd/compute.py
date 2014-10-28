@@ -65,7 +65,7 @@ def main():
 
     if not CONF.conductor.use_local:
         # NOTE(Sunny): For HPUXDriver, allow compute to access db directly.
-        if CONF.compute_driver != 'hpux.HPUXDriver':
+        if 'hpux.HPUXDriver' not in CONF.compute_driver:
             block_db_access()
         objects_base.NovaObject.indirection_api = \
             conductor_rpcapi.ConductorAPI()

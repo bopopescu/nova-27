@@ -1507,7 +1507,7 @@ class API(base.Base):
                 pass
 
             # NOTE(Sunny): For HPUXDriver, ignore the variable "is_up".
-            if CONF.compute_driver == 'hpux.HPUXDriver':
+            if 'hpux.HPUXDriver' in CONF.compute_driver:
                 is_up = True
                 cb(context, instance, bdms, reservations=reservations)
 

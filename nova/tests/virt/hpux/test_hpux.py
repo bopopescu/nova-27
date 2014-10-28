@@ -194,7 +194,7 @@ class HPUXDriverTestCase(test.NoDBTestCase):
         memory = fake_instance['_system_metadata']['instance_type_memory_mb']
         cpu = fake_instance['_system_metadata']['instance_type_vcpus']
         fake_lv_dict = {
-            'lv_size': disk,
+            'lv_size': disk * 1024,
             'lv_name': 'lv-' + fake_instance['_uuid'],
             'vg_path': CONF.hpux.vg_name,
             'npar_host': fake_npar['ip_addr']

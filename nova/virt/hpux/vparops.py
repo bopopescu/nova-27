@@ -120,13 +120,26 @@ class VParOps(object):
         :returns:
         """
         LOG.debug(_("Begin to destroy vPar %s.") % instance['display_name'])
-        npar_host = instance['metadata']['npar_host']
+        # NOTE(Sunny): Here, we should get "npar_host" from db, instead of
+        #              from instance['metadata']['npar_host']. Otherwise,
+        #              for this kind of scenario (spawn error, then call
+        #              destroy), will fail. Because the metadata of instance
+        #              is not the latest, not including "npar_host". There is
+        #              no error if we call destroy api directly.
+        #npar_host = instance['metadata']['npar_host']
+        metadata = db.instance_metadata_get(context, instance['uuid'])
+        npar_host = metadata['npar_host']
         # Power off vPar before "vparremove"
         vpar_info = {
             'npar_host': npar_host,
             'vpar_name': instance['display_name']
         }
         self.power_off_vpar(vpar_info)
+        # TODO(Sunny): Work around
+        # Here, "vparreset" need some time to power off vPar.
+        # The better way is to check vPar status in real time.
+        import time
+        time.sleep(20)
         # Get specified vPar info
         vpar_info = self._get_vpar_resource_info(instance['display_name'],
                                                  npar_host)
@@ -166,7 +179,7 @@ class VParOps(object):
         """Create logical volume for vPar on specified nPar.
 
         :param: A dict containing:
-             :lv_size: The size of logical volume
+             :lv_size: The size of logical volume (in MB)
              :lv_name: The name of logical volume
              :vg_path: The path of volume group
              :npar_host: The IP address of specified nPar
@@ -274,6 +287,7 @@ class VParOps(object):
 
         :param: A dict containing:
              :vpar_name: The name of vPar
+             :image_name: The name of image vPar used
              :mgmt_mac: The mac address of vPar for Management Network
              :mgmt_ip: The IP address of vPar for Management Network
              :mgmt_gw: The gateway of vPar for Management Network
@@ -306,40 +320,88 @@ class VParOps(object):
         # Create config file for client(vPar)
         LOG.debug(_("Begin to create client directory on ignite server %s"
                     " for vPar by MAC.") % CONF.hpux.ignite_ip)
+        dir_path = '/var/opt/ignite/clients/' + vpar_info['mgmt_mac']
         config_path = '/var/opt/ignite/clients/'\
                       + vpar_info['mgmt_mac'] + '/config'
         cmd_for_create_config = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': 'mkdir /var/opt/ignite/clients/' + vpar_info['mgmt_mac']
-                       + '&& touch ' + config_path
+            'command': 'mkdir ' + dir_path + ' && touch ' + config_path
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_create_config)
 
+        # Modify the owner and mode of new directory and file
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': 'chown -R bin:bin ' + dir_path
+                       + ' && chmod 666 ' + config_path
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+
+        # TODO(Sunny): Work around
+        # The parameters in /var/opt/ignite/clients/<MAC>/config is in the
+        # format of <final system_name="vpar-test">, the value must be
+        # enclosed in double quotation marks.
+        # However, so far we couldn't echo/cat double quotation marks into
+        # that file by ssh command, or replace single quotes with double quotes
+        # by using sed command, hpux always ignore double quotes.
+        # So, we add a template file "config.template" on ignite server
+        # in advance manually, then replace variables in code.
+        # Replace variables of config.template and redirect it to config
+        template_config = '/var/opt/ignite/clients/'\
+                          + CONF.hpux.config_template
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': "sed " + "-e s/'variable_image_name'/'"
+                       + vpar_info['image_name'] + "'/g "
+                       + "-e s/'variable_vpar_name'/'" + vpar_info['vpar_name']
+                       + "'/g " + template_config + " > " + config_path
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+
+        """
         # Add config info into the end of /var/opt/ignite/clients/<MAC>/config
         LOG.debug(_("Begin to create config file on ignite server %s"
                     " for vPar.") % CONF.hpux.ignite_ip)
+        command = "echo cfg \\'" + vpar_info['image_name'] + "\\'=TRUE"\
+                  + " >> " + config_path\
+                  + " && echo _hp_cfg_detail_level=\\'v\\'"\
+                  + " >> " + config_path\
+                  + " && echo final system_name=\\'"\
+                  + vpar_info['vpar_name'] + "\\'" + " >> " + config_path\
+                  + " && echo _hp_keyboard=\\'USB_PS2_DIN_US_English\\'"\
+                  + " >> " + config_path\
+                  + " && echo root_password=\\'1uGsgzGKG95gU\\'"\
+                  + " >> " + config_path\
+                  + " && echo _hp_root_disk=\\'0/0/0/0.0x0.0x0\\'"\
+                  + " >> " + config_path\
+                  + " && echo _my_second_disk_path=\\'\\'"\
+                  + " >> " + config_path
         cmd_for_config = {
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': CONF.hpux.ignite_ip,
-            'command': ' echo \'cfg "' + vpar_info['image_name'] + '"=TRUE\''
-                + '>> ' + config_path
-                + ' && echo \'_hp_cfg_detail_level="v"\''
-                + '>> ' + config_path
-                + ' && echo \'final system_name="' + vpar_info['vpar_name']
-                + '"\'' + '>> ' + config_path
-                + ' && echo \'_hp_keyboard="USB_PS2_DIN_US_English"\''
-                + '>> ' + config_path
-                + ' && echo \'root_password="1uGsgzGKG95gU"\''
-                + '>> ' + config_path
-                + ' && echo \'_hp_root_disk="0/0/0/0.0x0.0x0"\''
-                + '>> ' + config_path
-                + ' && echo \'_my_second_disk_path=""\''
-                + '>> ' + config_path
+            'command': command
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd_for_config)
+
+        # Replace single quotes with double quotes in "config" file
+        backup_config = config_path + '.bak'
+        cmd = {
+            'username': CONF.hpux.username,
+            'password': CONF.hpux.password,
+            'ip_address': CONF.hpux.ignite_ip,
+            'command': "mv " + config_path + " " + backup_config
+                       + " && sed " + "s/\\'/\\\"/g " + backup_config
+                       + " >> " + config_path
+        }
+        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        """
         return True
 
     def lanboot_vpar_by_efi(self, vpar_info):
@@ -406,6 +468,17 @@ class VParOps(object):
             ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
             console_log = re.sub('\x1b\[[0-9;]*[m|H|J]', '', ssh.before)
             LOG.info(_("\n%s") % console_log)
+            # Exit EFI if installation is successful
+            if 'The system is ready' in console_log:
+                # Send Ctrl-B to exit EFI
+                ssh.send('\x02')
+                ssh.sendline('\r\n')
+                ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+                ssh.sendline('X')
+                ssh.sendline('\r\n')
+                ssh.prompt(timeout=CONF.hpux.ssh_timeout_seconds)
+                LOG.debug(_("vPar %s installation is successful.")
+                          % vpar_info['vpar_name'])
         except pxssh.ExceptionPxssh:
             raise exception.Invalid(_("pxssh failed on login."))
         finally:
@@ -431,11 +504,6 @@ class VParOps(object):
                        + vpar_info['vpar_name'] + ' -d'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
-        # TODO(Sunny): Work around
-        # Here, "vparreset" need some time to power off vPar.
-        # The better way is to check vPar status in real time.
-        import time
-        time.sleep(10)
 
     def init_vhba(self, vpar_info):
         """Attach vHBA to vPar on specified nPar.

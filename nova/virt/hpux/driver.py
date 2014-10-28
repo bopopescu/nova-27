@@ -41,6 +41,9 @@ hpux_opts = [
     cfg.StrOpt('network_label',
                default='hpux',
                help='Network label for hpux vPar'),
+    cfg.StrOpt('config_template',
+               default='config.template',
+               help='Config template name for vPar on ignite server'),
     ]
 
 CONF = cfg.CONF
@@ -119,14 +122,15 @@ class HPUXDriver(driver.ComputeDriver):
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
-        """Destroy specific vpar
+        """Destroy the specified vPar from the Hypervisor.
 
-        :param context:
-        :param instance:
+        :param context: security context
+        :param instance: Instance object as returned by DB layer.
         :param network_info:
-        :param block_device_info:
-        :param destroy_disks:
-        :return:
+           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        :param block_device_info: Information about block devices that should
+                                  be detached from the instance.
+        :param destroy_disks: Indicates if disks should be destroyed
         """
         if self.instance_exists(instance['display_name']):
             self._vparops.destroy(context, instance, network_info)
@@ -136,18 +140,18 @@ class HPUXDriver(driver.ComputeDriver):
 
         :param context:
         :param vPar_info: (dict) the required vPar info
-        :returns: dictionary containing nPar info
+        :returns: selected nPar
         """
         nPar_list = db.npar_get_all(context)
         npar = self._hostops.nPar_lookup(vPar_info, nPar_list)
         if npar:
             LOG.debug(_("Scheduler successfully, find available nPar %s.")
                       % npar['ip_addr'])
-            # Try to update nPar IP into "nova.instance_metadata" table
             # NOTE(Sunny): Here, we can't update "host" field for
             # "nova.instances" table, otherwise, compute manager will not
             # be able to receive asynchronous request (eg. when you delete
             # specified vPar).
+            # Try to update nPar IP into "nova.instance_metadata" table
             meta = vPar_info['meta']
             meta['npar_host'] = npar['ip_addr']
             db.instance_update(context, vPar_info['uuid'], {'metadata': meta})
@@ -159,16 +163,27 @@ class HPUXDriver(driver.ComputeDriver):
 
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
-        """Spawn new vPar.
+        """Create a new vPar on the virtualization platform.
 
-        :param context:
-        :param instance:
-        :param image_meta:
-        :param injected_files:
-        :param admin_password:
+        Once this successfully completes, the instance should be
+        running (power_state.RUNNING).
+
+        If this fails, any partial instance should be completely
+        cleaned up, and the virtualization platform should be in the state
+        that it was before this call began.
+
+        :param context: security context
+        :param instance: nova.objects.instance.Instance
+                         This function should use the data there to guide
+                         the creation of the new instance.
+        :param image_meta: image object returned by nova.image.glance that
+                           defines the image from which to boot this instance
+        :param injected_files: User files to inject into instance.
+        :param admin_password: Administrator password to set in instance.
         :param network_info:
-        :param block_device_info:
-        :return:
+           :py:meth:`~nova.network.manager.NetworkManager.get_instance_nw_info`
+        :param block_device_info: Information about block devices to be
+                                  attached to the instance.
         """
         # Get fixed ip address from network_info
         mgmt_ip = None
@@ -199,7 +214,7 @@ class HPUXDriver(driver.ComputeDriver):
         # instance['_metadata']['npar_host'] as npar_host value,
         # should use selected npar['ip_addr'].
         lv_dict = {
-            'lv_size': disk,
+            'lv_size': disk * 1024,
             'lv_name': 'lv-' + instance['_uuid'],
             'vg_path': CONF.hpux.vg_name,
             'npar_host': npar['ip_addr']
