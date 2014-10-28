@@ -7,6 +7,7 @@ Management class for basic vPar operations.
 import pxssh
 import re
 
+from nova.compute import power_state
 from nova import context
 from nova import db
 from nova import exception
@@ -18,6 +19,20 @@ from oslo.config import cfg
 CONF = cfg.CONF
 
 LOG = logging.getLogger(__name__)
+
+HPUX_VPAR_NOSTATE = 0
+HPUX_VPAR_RUNNING = 1
+HPUX_VPAR_BLOCKED = 2
+HPUX_VPAR_SHUTDOWN = 4
+HPUX_VPAR_SHUTOFF = 5
+
+HPUX_POWER_STATE = {
+    HPUX_VPAR_NOSTATE: power_state.NOSTATE,
+    HPUX_VPAR_RUNNING: power_state.RUNNING,
+    HPUX_VPAR_BLOCKED: power_state.RUNNING,
+    HPUX_VPAR_SHUTDOWN: power_state.SHUTDOWN,
+    HPUX_VPAR_SHUTOFF: power_state.SHUTDOWN,
+}
 
 
 class VParOps(object):
@@ -82,18 +97,19 @@ class VParOps(object):
         :returns: A dict including CPU, memory, disk info and
         run state of required vPar.
         """
-        vpar_info = {}
+        # Here, instance doesn't include metadata info, so must get it from db
         admin_context = context.get_admin_context()
-        npar_list = db.npar_get_all(admin_context)
-        npar_host = instance['_metadata']['npar_host']
-        for npar in npar_list:
-            if npar_host == npar['ip_addr']:
-                vpar_info = self._get_vpar_resource_info(
-                    instance['_display_name'], npar_host)
+        metadata = db.instance_metadata_get(admin_context, instance['_uuid'])
+        vpar_info = self._get_vpar_resource_info(instance['_display_name'],
+                                                 metadata['npar_host'])
         if not vpar_info:
             raise exception.VparNotFound(instance['_display_name'])
-        else:
-            return vpar_info
+        current_vpar_state = HPUX_POWER_STATE[0]
+        if vpar_info['run_state'] == 'UP':
+            current_vpar_state = HPUX_POWER_STATE[1]
+        elif vpar_info['run_state'] == 'DOWN':
+            current_vpar_state = HPUX_POWER_STATE[4]
+        return {'state': current_vpar_state}
 
     def destroy(self, context, instance, network_info):
         """Destroy vPar on specified nPar.
@@ -387,8 +403,7 @@ class VParOps(object):
             # Send command related to "lanboot"
             ssh.send(cmd_lanboot)
             ssh.send('\r\n')
-            #ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
-            ssh.prompt(timeout=20)
+            ssh.prompt(timeout=CONF.hpux.lanboot_timeout_seconds)
             console_log = re.sub('\x1b\[[0-9;]*[m|H|J]', '', ssh.before)
             LOG.info(_("\n%s") % console_log)
         except pxssh.ExceptionPxssh:
