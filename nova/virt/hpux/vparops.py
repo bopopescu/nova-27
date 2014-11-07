@@ -231,7 +231,7 @@ class VParOps(object):
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
 
-    def init_vpar(self, vpar_info):
+    def boot_vpar(self, vpar_info):
         """Initialize the specified vPar so that could enter live console mode.
 
         :param: A dict containing:
@@ -243,10 +243,9 @@ class VParOps(object):
             'username': CONF.hpux.username,
             'password': CONF.hpux.password,
             'ip_address': vpar_info['npar_host'],
-            'command': '/opt/hpvm/bin/vparboot -p ' +
-                       vpar_info['vpar_name']
+            'command': '/opt/hpvm/bin/vparboot -p ' + vpar_info['vpar_name']
         }
-        LOG.debug(_("Begin to initialize vPar %s.") % vpar_info['vpar_name'])
+        LOG.debug(_("Begin to boot vPar %s.") % vpar_info['vpar_name'])
         result = utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
         if 'Successful start initiation' in result:
             LOG.debug(_("Initialize vPar %s successfully.")
@@ -505,7 +504,7 @@ class VParOps(object):
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
 
-    def init_vhba(self, vpar_info):
+    def attach_vhba(self, vpar_info):
         """Attach vHBA to vPar on specified nPar.
 
         :param: A dict containing:
@@ -513,7 +512,7 @@ class VParOps(object):
              :npar_host: The IP address of specified nPar
              :wwpn: The wwpn for FC HBA "/dev/fcd0"
              :wwnn: The wwnn for FC HBA "/dev/fcd0"
-        :return:
+        :return: True if attach successfully
         """
         # Force to power off vPar, don't care succeed or fail
         self.power_off_vpar(vpar_info)
@@ -529,20 +528,6 @@ class VParOps(object):
                        + ',' + vpar_info['wwnn'] + ':npiv:/dev/fcd0'
         }
         utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
-
-    def boot_vpar(self, vpar_info):
-        """Boot vPar on specified nPar.
-
-        :param: A dict containing:
-             :vpar_name: The name of vPar
-             :npar_host: The IP address of specified nPar
-        :return:
-        """
-        LOG.debug(_("Begin to boot vPar %s.") % vpar_info['vpar_name'])
-        cmd = {
-            'username': CONF.hpux.username,
-            'password': CONF.hpux.password,
-            'ip_address': vpar_info['npar_host'],
-            'command': '/opt/hpvm/bin/vparboot -p ' + vpar_info['vpar_name']
-        }
-        utils.ExecRemoteCmd().exec_remote_cmd(**cmd)
+        # Force to reset vPar, must succeed
+        result = self.boot_vpar(vpar_info)
+        return result

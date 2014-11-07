@@ -25,10 +25,10 @@ hpux_opts = [
                help='IP for ignite server'),
     cfg.IntOpt('ssh_timeout_seconds',
                default=20,
-               help='Number of seconds to wait for ssh command'),
+               help='The interval to wait for ssh command'),
     cfg.IntOpt('lanboot_timeout_seconds',
                default=1200,
-               help='Number of seconds to wait for lanboot command'),
+               help='The interval to wait for lanboot command'),
     cfg.StrOpt('vg_name',
                default='/dev/vg00',
                help='Volume group of nPar for creating logical volume'),
@@ -229,7 +229,7 @@ class HPUXDriver(driver.ComputeDriver):
             'image_name': image_meta['name']
         }
         self._vparops.define_vpar(vpar_info)
-        self._vparops.init_vpar(vpar_info)
+        self._vparops.boot_vpar(vpar_info)
         mac = self._vparops.get_mac_addr(vpar_info)
         vpar_info['mgmt_mac'] = mac
         vpar_info['mgmt_ip'] = mgmt_ip
